@@ -1,0 +1,7 @@
+{
+  "name": "OmniScribe",
+  "description": "A self-sovereign, mobile-first voice memo app with AI transcription and custom prompt parsing.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

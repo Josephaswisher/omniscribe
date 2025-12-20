@@ -1,0 +1,39 @@
+
+{
+  "name": "OmniScribe V2",
+  "short_name": "OmniScribe",
+  "description": "Voice-first note taking with AI transcription and smart organization",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "New Recording",
+      "url": "/?action=record",
+      "description": "Start a new voice recording"
+    },
+    {
+      "name": "Search Notes",
+      "url": "/?action=search",
+      "description": "Search your notes"
+    }
+  ]
+}
