@@ -223,19 +223,23 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
         initial={{ opacity: 0, y: 100 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 100 }}
-        className={`${isFullScreen ? 'fixed inset-0 z-50' : ''} bg-slate-900 flex flex-col`}
+        className={`${isFullScreen ? 'fixed inset-0 z-50' : ''} bg-terminal-bg flex flex-col`}
       >
+        {/* Subtle grid background */}
+        <div className="absolute inset-0 grid-bg opacity-30 pointer-events-none" />
+        
         {/* Header with Parser Selection */}
-        <div className="safe-top px-6 py-4">
+        <div className="relative safe-top px-6 py-4 border-b border-terminal-border">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={cancelRecording}
-              className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center"
+              className="w-10 h-10 rounded-lg bg-terminal-surface border border-terminal-border flex items-center justify-center hover:border-terminal-muted transition-colors"
             >
-              <X className="w-5 h-5 text-slate-400" />
+              <X className="w-5 h-5 text-neutral-500" />
             </button>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Recording
+            <span className="text-xs font-mono font-semibold text-rgb-red uppercase tracking-widest flex items-center gap-2">
+              <span className="w-2 h-2 bg-rgb-red rounded-full animate-pulse" />
+              REC
             </span>
             <div className="w-10" />
           </div>
@@ -246,10 +250,10 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
               <button
                 key={parser.id}
                 onClick={() => onParserChange(parser.id)}
-                className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-semibold transition-all border ${
+                className={`whitespace-nowrap px-4 py-2 rounded-lg text-xs font-mono font-semibold transition-all border ${
                   selectedParserId === parser.id
-                    ? 'bg-white text-slate-900 border-white'
-                    : 'bg-slate-800/50 text-slate-400 border-slate-700/50'
+                    ? 'bg-rgb-cyan text-black border-rgb-cyan'
+                    : 'bg-terminal-surface text-neutral-400 border-terminal-border hover:border-terminal-muted'
                 }`}
               >
                 {parser.name}
@@ -259,15 +263,15 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
         </div>
 
         {/* Main Recording Area */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="relative flex-1 flex flex-col items-center justify-center px-6">
           {/* Timer */}
           <motion.div
             animate={{ scale: isPaused ? [1, 0.98, 1] : 1 }}
             transition={{ repeat: isPaused ? Infinity : 0, duration: 1 }}
             className="mb-8"
           >
-            <span className={`text-6xl font-mono font-light tracking-tight ${
-              isPaused ? 'text-amber-400' : 'text-white'
+            <span className={`text-6xl font-mono font-medium tracking-tight ${
+              isPaused ? 'text-rgb-yellow' : 'text-white'
             }`}>
               {formatTime(elapsed)}
             </span>
@@ -282,50 +286,50 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
               height={80}
               barWidth={4}
               barGap={3}
-              primaryColor={isPaused ? '#fbbf24' : '#818cf8'}
-              secondaryColor="#334155"
+              primaryColor={isPaused ? '#fbbf24' : '#22d3ee'}
+              secondaryColor="#262626"
             />
           </div>
 
           {/* Recording Indicator */}
-          <div className="flex items-center gap-2 mb-8">
+          <div className="flex items-center gap-2 mb-8 px-4 py-2 rounded-lg bg-terminal-surface border border-terminal-border">
             <motion.div
               animate={{ opacity: isPaused ? [1, 0.3, 1] : [1, 0.5, 1] }}
               transition={{ repeat: Infinity, duration: isPaused ? 1.5 : 0.8 }}
-              className={`w-3 h-3 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-red-500'}`}
+              className={`w-2 h-2 rounded-full ${isPaused ? 'bg-rgb-yellow' : 'bg-rgb-red'}`}
             />
-            <span className={`text-sm font-medium ${isPaused ? 'text-amber-400' : 'text-red-400'}`}>
-              {isPaused ? 'Paused' : 'Recording...'}
+            <span className={`text-xs font-mono font-semibold uppercase ${isPaused ? 'text-rgb-yellow' : 'text-rgb-red'}`}>
+              {isPaused ? 'PAUSED' : 'RECORDING'}
             </span>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="safe-bottom px-6 pb-8 relative z-10">
-          <div className="flex items-center justify-center gap-8">
+        <div className="relative safe-bottom px-6 pb-8 border-t border-terminal-border bg-terminal-surface/50">
+          <div className="flex items-center justify-center gap-6 pt-6">
             {/* Cancel Button */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={cancelRecording}
-              className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center"
+              className="w-14 h-14 rounded-xl bg-terminal-surface border border-terminal-border flex items-center justify-center hover:border-rgb-red transition-colors"
             >
-              <X className="w-6 h-6 text-slate-400" />
+              <X className="w-6 h-6 text-neutral-500" />
             </motion.button>
 
             {/* Pause/Resume Button */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={pauseRecording}
-              className={`w-20 h-20 rounded-full flex items-center justify-center ${
+              className={`w-20 h-20 rounded-xl flex items-center justify-center border transition-all ${
                 isPaused 
-                  ? 'bg-amber-500 shadow-lg shadow-amber-500/30' 
-                  : 'bg-slate-700'
+                  ? 'bg-rgb-yellow border-rgb-yellow glow-yellow' 
+                  : 'bg-terminal-hover border-terminal-border hover:border-rgb-cyan'
               }`}
             >
               {isPaused ? (
-                <Play className="w-8 h-8 text-white ml-1" />
+                <Play className="w-8 h-8 text-black ml-1" />
               ) : (
-                <Pause className="w-8 h-8 text-white" />
+                <Pause className="w-8 h-8 text-neutral-300" />
               )}
             </motion.button>
 
@@ -333,14 +337,14 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => stopRecording(true)}
-              className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/30"
+              className="w-14 h-14 rounded-xl bg-rgb-green border border-rgb-green flex items-center justify-center glow-green"
             >
-              <Check className="w-6 h-6 text-white" />
+              <Check className="w-6 h-6 text-black" />
             </motion.button>
           </div>
 
-          <p className="text-center text-xs text-slate-500 mt-4">
-            {isPaused ? 'Tap play to resume' : 'Tap checkmark to save'}
+          <p className="text-center text-xs text-neutral-600 font-mono mt-4">
+            {isPaused ? 'TAP PLAY TO RESUME' : 'TAP CHECK TO SAVE'}
           </p>
         </div>
       </motion.div>

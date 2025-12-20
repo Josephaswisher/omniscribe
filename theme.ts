@@ -1,34 +1,35 @@
 import { ThemeColors, ThemeMode } from './types';
 
+// Terminal-inspired with RGB accents (Claude UI inspired)
 export const lightTheme: ThemeColors = {
-  background: '#ffffff',
-  surface: '#f8fafc',
-  surfaceHover: '#f1f5f9',
-  text: '#0f172a',
-  textMuted: '#64748b',
-  textSecondary: '#94a3b8',
-  border: '#e2e8f0',
-  primary: '#6366f1',
-  primaryHover: '#4f46e5',
-  accent: '#8b5cf6',
+  background: '#fafafa',
+  surface: '#ffffff',
+  surfaceHover: '#f5f5f5',
+  text: '#171717',
+  textMuted: '#525252',
+  textSecondary: '#737373',
+  border: '#e5e5e5',
+  primary: '#0ea5e9',      // Cyan
+  primaryHover: '#0284c7',
+  accent: '#10b981',       // Emerald
   error: '#ef4444',
   success: '#10b981',
   warning: '#f59e0b',
 };
 
 export const darkTheme: ThemeColors = {
-  background: '#0f172a',
-  surface: '#1e293b',
-  surfaceHover: '#334155',
-  text: '#f8fafc',
-  textMuted: '#94a3b8',
-  textSecondary: '#64748b',
-  border: '#334155',
-  primary: '#818cf8',
-  primaryHover: '#6366f1',
-  accent: '#a78bfa',
+  background: '#0a0a0a',   // Near black - terminal style
+  surface: '#141414',      // Slightly lighter
+  surfaceHover: '#1f1f1f', 
+  text: '#fafafa',
+  textMuted: '#a3a3a3',
+  textSecondary: '#737373',
+  border: '#262626',
+  primary: '#22d3ee',      // Cyan RGB accent
+  primaryHover: '#06b6d4',
+  accent: '#4ade80',       // Green RGB accent  
   error: '#f87171',
-  success: '#34d399',
+  success: '#4ade80',
   warning: '#fbbf24',
 };
 

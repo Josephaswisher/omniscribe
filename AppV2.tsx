@@ -137,6 +137,7 @@ const App: React.FC = () => {
           ...processingNote,
           transcript: result.transcript,
           parsedSummary: result.summary,
+          title: result.title,
           status: 'completed',
           wordCount: result.transcript.split(/\s+/).length,
         };
@@ -335,34 +336,37 @@ const App: React.FC = () => {
   const pendingActionsCount = actions.filter(a => a.status === 'pending').length;
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 text-slate-100 font-sans">
-      {/* Background */}
-      <div className="fixed inset-0 pointer-events-none opacity-20">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-900/40 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/40 rounded-full blur-3xl" />
+    <div className="h-full flex flex-col bg-terminal-bg text-neutral-100 font-sans">
+      {/* Background - subtle grid */}
+      <div className="fixed inset-0 pointer-events-none grid-bg opacity-50" />
+      
+      {/* Subtle RGB glow accents */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-rgb-cyan/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rgb-green/5 rounded-full blur-[120px]" />
       </div>
 
       {/* Header */}
-      <header className="relative z-20 px-4 py-4 safe-top flex items-center justify-between">
+      <header className="relative z-20 px-4 py-4 safe-top flex items-center justify-between border-b border-terminal-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-10 h-10 bg-terminal-surface border border-terminal-border rounded-lg flex items-center justify-center glow-cyan">
+            <svg className="w-5 h-5 text-rgb-cyan" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-10-8a3 3 0 013-3h6a3 3 0 013 3v4a3 3 0 01-3 3H9a3 3 0 01-3-3v-4z" />
             </svg>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">OmniScribe</h1>
+            <h1 className="text-lg font-semibold text-white font-mono tracking-tight">OmniScribe</h1>
             {isSyncing && (
-              <span className="text-xs text-indigo-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
-                Syncing...
+              <span className="text-[10px] text-rgb-cyan flex items-center gap-1 font-mono">
+                <span className="w-1.5 h-1.5 bg-rgb-cyan rounded-full animate-pulse" />
+                SYNCING...
               </span>
             )}
           </div>
         </div>
         <button
           onClick={() => setCurrentView('settings')}
-          className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+          className="w-10 h-10 rounded-lg bg-terminal-surface border border-terminal-border flex items-center justify-center text-neutral-500 hover:text-white hover:border-terminal-muted transition-colors"
         >
           <Settings className="w-5 h-5" />
         </button>
@@ -520,7 +524,7 @@ const App: React.FC = () => {
 
       {/* Offline Toast */}
       {!navigator.onLine && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-amber-500/90 backdrop-blur text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-rgb-yellow/90 backdrop-blur text-black text-xs font-mono font-bold px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2 border border-rgb-yellow">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829" />
           </svg>

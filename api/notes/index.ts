@@ -110,7 +110,34 @@ export async function POST(request: Request) {
 
     const transcript = transcriptionResponse.text || '';
 
-    // 4. Parse with Gemini (if not raw)
+    // 4. Generate title from transcript
+    let title: string | null = null;
+    if (transcript && transcript.length > 10) {
+      try {
+        const titleResponse = await genai.models.generateContent({
+          model: 'gemini-2.0-flash-exp',
+          contents: transcript,
+          config: {
+            systemInstruction: `Generate a short, descriptive title (3-6 words max) for this voice note transcript. 
+The title should capture the main topic or theme.
+Output ONLY the title text, no quotes, no punctuation at the end, no explanation.
+Examples of good titles:
+- Weekly Team Standup Notes
+- Grocery Shopping List
+- Project Deadline Discussion
+- Morning Meditation Thoughts
+- Client Meeting Action Items`,
+          },
+        });
+        title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '') || null;
+      } catch (titleError) {
+        console.error('Title generation error:', titleError);
+        // Fall back to first few words of transcript
+        title = transcript.split(/\s+/).slice(0, 5).join(' ') + '...';
+      }
+    }
+
+    // 5. Parse with Gemini (if not raw)
     let parsedSummary: string | null = null;
     
     if (parserId !== 'raw' && transcript) {
@@ -137,13 +164,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Update note with transcript and summary
+    // 6. Update note with transcript, title, and summary
     const { data: updatedNote, error: updateError } = await supabase
       .from('notes')
       .update({
         transcript,
+        title,
         parsed_summary: parsedSummary,
-        status: 'completed'
+        status: 'completed',
+        word_count: transcript ? transcript.split(/\s+/).length : 0
       })
       .eq('id', noteId)
       .select()

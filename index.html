@@ -7,9 +7,9 @@
     <title>OmniScribe V2</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#0a0a0a">
     <link rel="manifest" href="/manifest.json">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -20,14 +20,36 @@
               mono: ['JetBrains Mono', 'monospace'],
             },
             colors: {
-              slate: {
-                850: '#151e32',
-                900: '#0f172a',
-                950: '#020617',
+              terminal: {
+                bg: '#0a0a0a',
+                surface: '#141414',
+                hover: '#1f1f1f',
+                border: '#262626',
+                muted: '#404040',
+              },
+              rgb: {
+                cyan: '#22d3ee',
+                green: '#4ade80',
+                red: '#f87171',
+                yellow: '#fbbf24',
+                blue: '#60a5fa',
+                magenta: '#f472b6',
               }
             },
             animation: {
               'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'glow': 'glow 2s ease-in-out infinite alternate',
+              'scan': 'scan 4s linear infinite',
+            },
+            keyframes: {
+              glow: {
+                '0%': { opacity: '0.5' },
+                '100%': { opacity: '1' },
+              },
+              scan: {
+                '0%': { transform: 'translateY(-100%)' },
+                '100%': { transform: 'translateY(100%)' },
+              }
             }
           }
         }
@@ -35,19 +57,22 @@
     </script>
     <style>
         :root {
-            --color-background: #0f172a;
-            --color-surface: #1e293b;
-            --color-surfaceHover: #334155;
-            --color-text: #f8fafc;
-            --color-textMuted: #94a3b8;
-            --color-textSecondary: #64748b;
-            --color-border: #334155;
-            --color-primary: #818cf8;
-            --color-primaryHover: #6366f1;
-            --color-accent: #a78bfa;
+            --color-background: #0a0a0a;
+            --color-surface: #141414;
+            --color-surfaceHover: #1f1f1f;
+            --color-text: #fafafa;
+            --color-textMuted: #a3a3a3;
+            --color-textSecondary: #737373;
+            --color-border: #262626;
+            --color-primary: #22d3ee;
+            --color-primaryHover: #06b6d4;
+            --color-accent: #4ade80;
             --color-error: #f87171;
-            --color-success: #34d399;
+            --color-success: #4ade80;
             --color-warning: #fbbf24;
+            --rgb-cyan: 34, 211, 238;
+            --rgb-green: 74, 222, 128;
+            --rgb-red: 248, 113, 113;
         }
         body {
             -webkit-tap-highlight-color: transparent;
@@ -60,7 +85,7 @@
         .safe-top {
             padding-top: env(safe-area-inset-top);
         }
-        /* Custom Scrollbar hide */
+        /* Custom Scrollbar - terminal style */
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
@@ -68,15 +93,65 @@
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
-        /* Glass effect utility */
+        ::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #262626;
+          border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #404040;
+        }
+        /* Glass effect - darker terminal style */
         .glass {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        /* Card module styling */
+        .card-module {
+            background: #141414;
+            border: 1px solid #262626;
+            border-radius: 12px;
+        }
+        .card-module:hover {
+            border-color: #404040;
+        }
+        /* RGB glow effects */
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(var(--rgb-cyan), 0.15);
+        }
+        .glow-green {
+            box-shadow: 0 0 20px rgba(var(--rgb-green), 0.15);
+        }
+        .glow-red {
+            box-shadow: 0 0 20px rgba(var(--rgb-red), 0.15);
+        }
+        /* Terminal text styling */
+        .terminal-text {
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.02em;
+        }
+        /* Subtle grid background */
+        .grid-bg {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 32px 32px;
         }
         input[type="range"] {
-          accent-color: #6366f1;
+          accent-color: #22d3ee;
+        }
+        /* Focus states */
+        *:focus-visible {
+          outline: 2px solid rgba(var(--rgb-cyan), 0.5);
+          outline-offset: 2px;
         }
     </style>
     <script type="importmap">
@@ -91,7 +166,7 @@
     </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans select-none overflow-hidden h-screen w-screen">
+<body class="bg-terminal-bg text-neutral-100 font-sans select-none overflow-hidden h-screen w-screen">
     <div id="root" class="h-full w-full"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

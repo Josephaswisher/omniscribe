@@ -5,7 +5,7 @@ import { Parser } from './types';
 export const transcribeAndParse = async (
   audioBlob: Blob,
   parser?: Parser
-): Promise<{ transcript: string; summary?: string }> => {
+): Promise<{ transcript: string; summary?: string; title?: string }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Convert Blob to base64
@@ -21,9 +21,8 @@ export const transcribeAndParse = async (
   const base64Audio = await base64Promise;
 
   // Step 1: Transcription
-  // Fix: Refactor contents to use recommended single object with parts for multimodal inputs
   const transcriptionResponse = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.0-flash-exp',
     contents: {
       parts: [
         {
@@ -39,11 +38,31 @@ export const transcribeAndParse = async (
 
   const transcript = transcriptionResponse.text || "Transcription failed.";
 
-  // Step 2: Parsing (if applicable)
+  // Step 2: Generate title from transcript
+  let title: string | undefined = undefined;
+  if (transcript && transcript.length > 10) {
+    try {
+      const titleResponse = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: transcript,
+        config: {
+          systemInstruction: `Generate a short, descriptive title (3-6 words max) for this voice note transcript. 
+The title should capture the main topic or theme.
+Output ONLY the title text, no quotes, no punctuation at the end, no explanation.`,
+        },
+      });
+      title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '');
+    } catch {
+      // Fall back to first few words
+      title = transcript.split(/\s+/).slice(0, 5).join(' ') + '...';
+    }
+  }
+
+  // Step 3: Parsing (if applicable)
   let summary: string | undefined = undefined;
   if (parser && parser.id !== 'raw') {
     const parsingResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: transcript,
       config: {
         systemInstruction: parser.systemPrompt,
@@ -52,5 +71,5 @@ export const transcribeAndParse = async (
     summary = parsingResponse.text;
   }
 
-  return { transcript, summary };
+  return { transcript, summary, title };
 };
