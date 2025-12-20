@@ -32,45 +32,51 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const animationRef = useRef<number | null>(null);
+  const waveformIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
-  const waveformDataRef = useRef<number[]>([]);
-  const lastUpdateRef = useRef<number>(0);
+  const pauseStartRef = useRef<number>(0);
 
-  const updateWaveform = useCallback(() => {
-    if (!analyserRef.current) return;
-
-    const now = Date.now();
-    // Throttle updates to ~10fps to prevent UI freeze
-    if (now - lastUpdateRef.current < 100) {
-      animationRef.current = requestAnimationFrame(updateWaveform);
-      return;
-    }
-    lastUpdateRef.current = now;
-
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-    analyserRef.current.getByteFrequencyData(dataArray);
-
-    const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-    const normalized = Math.min(1, average / 128);
-
-    waveformDataRef.current = [...waveformDataRef.current.slice(-60), normalized];
-    setWaveformData([...waveformDataRef.current]);
+  // Use interval-based waveform updates for more reliable performance
+  const startWaveformUpdates = useCallback(() => {
+    if (waveformIntervalRef.current) return;
     
-    animationRef.current = requestAnimationFrame(updateWaveform);
+    waveformIntervalRef.current = setInterval(() => {
+      if (!analyserRef.current || isPaused) return;
+
+      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(dataArray);
+
+      // Calculate RMS for better audio level representation
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      const normalized = Math.min(1, rms / 128);
+      
+      // Add some visual variation
+      const boosted = Math.min(1, normalized * 1.5 + 0.1);
+
+      setWaveformData(prev => [...prev.slice(-59), boosted]);
+    }, 80); // ~12fps for smooth but efficient updates
+  }, [isPaused]);
+
+  const stopWaveformUpdates = useCallback(() => {
+    if (waveformIntervalRef.current) {
+      clearInterval(waveformIntervalRef.current);
+      waveformIntervalRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
-      animationRef.current = requestAnimationFrame(updateWaveform);
-    } else if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
+      startWaveformUpdates();
+    } else {
+      stopWaveformUpdates();
     }
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, [isRecording, isPaused, updateWaveform]);
+    return stopWaveformUpdates;
+  }, [isRecording, isPaused, startWaveformUpdates, stopWaveformUpdates]);
 
   // Auto-start recording when opened in fullscreen mode
   useEffect(() => {
@@ -129,12 +135,13 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   const pauseRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       if (isPaused) {
-        // Resume
+        // Resume - add the paused duration to total paused time
+        pausedTimeRef.current += Date.now() - pauseStartRef.current;
         mediaRecorderRef.current.resume();
-        startTimeRef.current = Date.now() - (elapsed * 1000);
         setIsPaused(false);
       } else {
-        // Pause
+        // Pause - record when we started pausing
+        pauseStartRef.current = Date.now();
         mediaRecorderRef.current.pause();
         setIsPaused(true);
       }
@@ -148,7 +155,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     mediaRecorderRef.current.stop();
     
     if (timerRef.current) clearInterval(timerRef.current);
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    stopWaveformUpdates();
 
     if (save && chunksRef.current.length > 0) {
       const mimeType = mediaRecorderRef.current.mimeType || 'audio/ogg';
@@ -177,7 +184,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     
     // Cleanup
     if (timerRef.current) clearInterval(timerRef.current);
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    stopWaveformUpdates();
     streamRef.current?.getTracks().forEach(track => track.stop());
     audioContextRef.current?.close();
 

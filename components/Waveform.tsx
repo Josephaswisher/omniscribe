@@ -1,5 +1,34 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useLayoutEffect } from 'react';
 import { WaveformProps } from '../types';
+
+// Polyfill for roundRect
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, [radius]);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
 
 const Waveform: React.FC<WaveformProps> = ({
   data,
@@ -13,12 +42,29 @@ const Waveform: React.FC<WaveformProps> = ({
   secondaryColor = '#334155',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Store data in ref to avoid re-running effect on every data change
-  const dataRef = useRef(data);
-  dataRef.current = data;
+  // Setup canvas dimensions on mount and resize
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${height}px`;
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [height]);
+
+  // Draw waveform whenever data or state changes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -27,62 +73,46 @@ const Waveform: React.FC<WaveformProps> = ({
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const width = canvas.width / dpr;
+    const canvasHeight = canvas.height / dpr;
 
-    const draw = () => {
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      
-      const totalBars = Math.floor(rect.width / (barWidth + barGap));
-      const displayData = dataRef.current.length > 0 
-        ? dataRef.current.slice(-totalBars) 
-        : new Array(totalBars).fill(0.1);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, canvasHeight);
 
-      const centerY = rect.height / 2;
+    const totalBars = Math.floor(width / (barWidth + barGap));
+    const displayData = data.length > 0 
+      ? data.slice(-totalBars) 
+      : new Array(totalBars).fill(0.15);
 
-      displayData.forEach((value, index) => {
-        const x = index * (barWidth + barGap);
-        const barHeight = Math.max(4, value * (rect.height - 8));
-        const y = centerY - barHeight / 2;
+    // Pad with empty bars on the left if needed
+    while (displayData.length < totalBars) {
+      displayData.unshift(0.15);
+    }
 
-        const progressRatio = progress > 0 ? index / displayData.length : (isRecording ? 1 : 0.5);
-        
-        if (isRecording && !isPaused) {
-          ctx.fillStyle = primaryColor;
-          ctx.beginPath();
-          ctx.roundRect(x, y, barWidth, barHeight, [barWidth / 2]);
-          ctx.fill();
-        } else {
-          const isPlayed = index / displayData.length <= progressRatio;
-          ctx.fillStyle = isPlayed ? primaryColor : secondaryColor;
-          ctx.beginPath();
-          ctx.roundRect(x, y, barWidth, barHeight, [barWidth / 2]);
-          ctx.fill();
-        }
-      });
+    const centerY = canvasHeight / 2;
+    const radius = Math.min(barWidth / 2, 2);
 
-      if (isRecording && !isPaused) {
-        animationRef.current = requestAnimationFrame(draw);
+    displayData.forEach((value, index) => {
+      const x = index * (barWidth + barGap);
+      const barHeight = Math.max(4, value * (canvasHeight - 8));
+      const y = centerY - barHeight / 2;
+
+      if (isRecording) {
+        ctx.fillStyle = isPaused ? secondaryColor : primaryColor;
+      } else {
+        const progressRatio = progress > 0 ? progress : 0.5;
+        const isPlayed = index / displayData.length <= progressRatio;
+        ctx.fillStyle = isPlayed ? primaryColor : secondaryColor;
       }
-    };
 
-    draw();
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [isRecording, isPaused, progress, height, barWidth, barGap, primaryColor, secondaryColor]);
+      drawRoundedRect(ctx, x, y, barWidth, barHeight, radius);
+    });
+  }, [data, isRecording, isPaused, progress, barWidth, barGap, primaryColor, secondaryColor]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full"
-      style={{ height }}
-    />
+    <div ref={containerRef} className="w-full" style={{ height }}>
+      <canvas ref={canvasRef} className="block" />
+    </div>
   );
 };
 

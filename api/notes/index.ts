@@ -9,7 +9,7 @@ const supabase = createClient(
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
   maxDuration: 60
 };
 
@@ -82,20 +82,31 @@ export async function POST(request: Request) {
     // 3. Transcribe with Gemini
     const base64Audio = Buffer.from(audioBuffer).toString('base64');
     
-    const transcriptionResponse = await genai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: audioFile.type || 'audio/mp4',
-              data: base64Audio,
+    let transcriptionResponse;
+    try {
+      transcriptionResponse = await genai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: audioFile.type || 'audio/mp4',
+                data: base64Audio,
+              },
             },
-          },
-          { text: "Please transcribe this audio exactly as it is spoken. Do not add filler or commentary. Output ONLY the raw transcript text." }
-        ],
-      },
-    });
+            { text: "Please transcribe this audio exactly as it is spoken. Do not add filler or commentary. Output ONLY the raw transcript text." }
+          ],
+        },
+      });
+    } catch (transcribeError) {
+      console.error('Transcription error:', transcribeError);
+      // Update note with error status
+      await supabase
+        .from('notes')
+        .update({ status: 'error', error_message: 'Transcription failed' })
+        .eq('id', noteId);
+      return Response.json({ error: 'Transcription failed', details: String(transcribeError) }, { status: 500 });
+    }
 
     const transcript = transcriptionResponse.text || '';
 
@@ -110,14 +121,19 @@ export async function POST(request: Request) {
         .single();
 
       if (parser?.system_prompt) {
-        const parsingResponse = await genai.models.generateContent({
-          model: 'gemini-2.0-flash',
-          contents: transcript,
-          config: {
-            systemInstruction: parser.system_prompt,
-          },
-        });
-        parsedSummary = parsingResponse.text || null;
+        try {
+          const parsingResponse = await genai.models.generateContent({
+            model: 'gemini-2.0-flash-exp',
+            contents: transcript,
+            config: {
+              systemInstruction: parser.system_prompt,
+            },
+          });
+          parsedSummary = parsingResponse.text || null;
+        } catch (parseError) {
+          console.error('Parsing error:', parseError);
+          // Continue without parsed summary
+        }
       }
     }
 
