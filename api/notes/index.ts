@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
-import { transcribeAudio } from '../services/speechToText';
+// Temporarily disabled Speech-to-Text - using Gemini-only
+// import { transcribeAudio } from '../services/speechToText';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -80,63 +81,33 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to create note' }, { status: 500 });
     }
 
-    // 3. HYBRID TRANSCRIPTION: Speech-to-Text → Gemini cleanup
+    // 3. TRANSCRIPTION: Using Gemini for audio transcription
     const mimeType = audioFile.type || 'audio/webm';
     console.log(`Processing audio: ${fileName}, size: ${audioBuffer.byteLength}, mimeType: ${mimeType}`);
     
     let transcript = '';
-    let confidence = 0;
     
-    // Step 3a: Use Google Cloud Speech-to-Text for raw transcription
     try {
-      console.log('[Hybrid] Step 1: Google Cloud Speech-to-Text');
-      const sttResult = await transcribeAudio(audioBuffer, mimeType);
-      transcript = sttResult.transcript;
-      confidence = sttResult.confidence;
-      console.log(`[Hybrid] STT complete: ${sttResult.wordCount} words, confidence: ${confidence.toFixed(2)}`);
-    } catch (sttError: any) {
-      console.error('[Hybrid] STT failed, falling back to Gemini:', sttError?.message);
-      
-      // Fallback to Gemini-only transcription if STT fails
-      try {
-        const base64Audio = Buffer.from(audioBuffer).toString('base64');
-        const geminiResponse = await genai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: {
-            parts: [
-              { inlineData: { mimeType, data: base64Audio } },
-              { text: "Generate a verbatim transcript of this audio. Output only the transcript text, no timestamps, no speaker labels, no commentary. If the audio is unclear or silent, output 'No speech detected.'" }
-            ],
-          },
-        });
-        transcript = geminiResponse.text || '';
-        console.log('[Hybrid] Gemini fallback transcription complete');
-      } catch (fallbackError: any) {
-        console.error('[Hybrid] Both STT and Gemini failed:', fallbackError?.message);
-        await supabase
-          .from('notes')
-          .update({ status: 'error', error_message: `Transcription failed: ${sttError?.message || sttError}` })
-          .eq('id', noteId);
-        return Response.json({ error: 'Transcription failed', details: sttError?.message }, { status: 500 });
-      }
-    }
-
-    // Step 3b: Use Gemini to clean up the transcript (optional enhancement)
-    if (transcript && transcript !== 'No speech detected.' && transcript.length > 20) {
-      try {
-        console.log('[Hybrid] Step 2: Gemini cleanup');
-        const cleanupResponse = await genai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Clean up this speech-to-text transcript. Fix obvious errors, improve punctuation, and make it more readable while preserving the original meaning. Do not add or remove content. Output only the cleaned transcript:\n\n${transcript}`,
-        });
-        const cleanedTranscript = cleanupResponse.text?.trim();
-        if (cleanedTranscript && cleanedTranscript.length > 10) {
-          transcript = cleanedTranscript;
-          console.log('[Hybrid] Cleanup complete');
-        }
-      } catch (cleanupError) {
-        console.warn('[Hybrid] Cleanup failed, using raw STT transcript');
-      }
+      console.log('[Transcription] Using Gemini for transcription');
+      const base64Audio = Buffer.from(audioBuffer).toString('base64');
+      const geminiResponse = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+          parts: [
+            { inlineData: { mimeType, data: base64Audio } },
+            { text: "Generate a verbatim transcript of this audio. Output only the transcript text, no timestamps, no speaker labels, no commentary. If the audio is unclear or silent, output 'No speech detected.'" }
+          ],
+        },
+      });
+      transcript = geminiResponse.text || '';
+      console.log(`[Transcription] Complete, length: ${transcript.length}`);
+    } catch (transcribeError: any) {
+      console.error('[Transcription] Failed:', transcribeError?.message);
+      await supabase
+        .from('notes')
+        .update({ status: 'error', error_message: `Transcription failed: ${transcribeError?.message || transcribeError}` })
+        .eq('id', noteId);
+      return Response.json({ error: 'Transcription failed', details: transcribeError?.message }, { status: 500 });
     }
     
     console.log(`Transcript length: ${transcript.length}`);

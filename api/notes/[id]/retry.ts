@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
-import { transcribeAudio } from '../../services/speechToText';
+// Temporarily disabled Speech-to-Text - using Gemini-only
+// import { transcribeAudio } from '../../services/speechToText';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -38,59 +39,32 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const audioBuffer = await audioResponse.arrayBuffer();
     const mimeType = audioResponse.headers.get('content-type') || 'audio/webm';
 
-    // HYBRID TRANSCRIPTION: Speech-to-Text → Gemini cleanup
+    // TRANSCRIPTION: Using Gemini for audio transcription
     console.log(`[Retry] Processing note ${noteId}, mimeType: ${mimeType}, size: ${audioBuffer.byteLength}`);
     
     let transcript = '';
     
-    // Step 1: Use Google Cloud Speech-to-Text
     try {
-      console.log('[Retry] Step 1: Google Cloud Speech-to-Text');
-      const sttResult = await transcribeAudio(audioBuffer, mimeType);
-      transcript = sttResult.transcript;
-      console.log(`[Retry] STT complete: ${sttResult.wordCount} words`);
-    } catch (sttError: any) {
-      console.error('[Retry] STT failed, falling back to Gemini:', sttError?.message);
-      
-      // Fallback to Gemini-only transcription
-      try {
-        const base64Audio = Buffer.from(audioBuffer).toString('base64');
-        const geminiResponse = await genai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: {
-            parts: [
-              { inlineData: { mimeType, data: base64Audio } },
-              { text: "Generate a verbatim transcript of this audio. Output only the transcript text, no timestamps, no speaker labels, no commentary. If the audio is unclear or silent, output 'No speech detected.'" }
-            ],
-          },
-        });
-        transcript = geminiResponse.text || '';
-        console.log('[Retry] Gemini fallback complete');
-      } catch (fallbackError: any) {
-        console.error('[Retry] Both STT and Gemini failed');
-        await supabase
-          .from('notes')
-          .update({ status: 'error', error_message: `Transcription failed: ${sttError?.message || sttError}` })
-          .eq('id', noteId);
-        return Response.json({ error: 'Transcription failed', details: sttError?.message }, { status: 500 });
-      }
-    }
-
-    // Step 2: Use Gemini to clean up the transcript
-    if (transcript && transcript !== 'No speech detected.' && transcript.length > 20) {
-      try {
-        console.log('[Retry] Step 2: Gemini cleanup');
-        const cleanupResponse = await genai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Clean up this speech-to-text transcript. Fix obvious errors, improve punctuation, and make it more readable while preserving the original meaning. Do not add or remove content. Output only the cleaned transcript:\n\n${transcript}`,
-        });
-        const cleanedTranscript = cleanupResponse.text?.trim();
-        if (cleanedTranscript && cleanedTranscript.length > 10) {
-          transcript = cleanedTranscript;
-        }
-      } catch (cleanupError) {
-        console.warn('[Retry] Cleanup failed, using raw STT transcript');
-      }
+      console.log('[Retry] Using Gemini for transcription');
+      const base64Audio = Buffer.from(audioBuffer).toString('base64');
+      const geminiResponse = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+          parts: [
+            { inlineData: { mimeType, data: base64Audio } },
+            { text: "Generate a verbatim transcript of this audio. Output only the transcript text, no timestamps, no speaker labels, no commentary. If the audio is unclear or silent, output 'No speech detected.'" }
+          ],
+        },
+      });
+      transcript = geminiResponse.text || '';
+      console.log(`[Retry] Transcription complete, length: ${transcript.length}`);
+    } catch (transcribeError: any) {
+      console.error('[Retry] Transcription failed:', transcribeError?.message);
+      await supabase
+        .from('notes')
+        .update({ status: 'error', error_message: `Transcription failed: ${transcribeError?.message || transcribeError}` })
+        .eq('id', noteId);
+      return Response.json({ error: 'Transcription failed', details: transcribeError?.message }, { status: 500 });
     }
     
     console.log(`Transcript length: ${transcript.length}`);
