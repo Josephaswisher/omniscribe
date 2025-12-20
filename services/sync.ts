@@ -22,6 +22,46 @@ export async function syncNoteToCloud(note: VoiceNote): Promise<SyncResult> {
   }
 
   try {
+    // Check if we have a valid audio blob to upload
+    const hasValidBlob = note.audioBlob && note.audioBlob.size > 0;
+    
+    // If already synced and has audioUrl, just re-process the transcript
+    if (!hasValidBlob && note.audioUrl) {
+      // Re-trigger processing via the retry endpoint
+      const response = await fetch(`${API_BASE}/notes/${note.id}/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          audioUrl: note.audioUrl,
+          parserId: note.parserId 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Retry failed');
+      }
+
+      const { note: cloudNote } = await response.json();
+      
+      const updatedNote: VoiceNote = {
+        ...note,
+        transcript: cloudNote.transcript,
+        parsedSummary: cloudNote.parsed_summary,
+        title: cloudNote.title,
+        status: cloudNote.status,
+        syncedToCloud: true
+      };
+
+      await db.saveNote(updatedNote);
+      return { success: true, note: updatedNote };
+    }
+
+    // No valid blob and no audioUrl - can't process
+    if (!hasValidBlob) {
+      return { success: false, error: 'No audio data available for processing' };
+    }
+
     const formData = new FormData();
     formData.append('audio', note.audioBlob, `${note.id}.mp4`);
     formData.append('parserId', note.parserId);
@@ -45,6 +85,7 @@ export async function syncNoteToCloud(note: VoiceNote): Promise<SyncResult> {
       ...note,
       transcript: cloudNote.transcript,
       parsedSummary: cloudNote.parsed_summary,
+      title: cloudNote.title,
       audioUrl: cloudNote.audio_url,
       status: cloudNote.status,
       syncedToCloud: true
@@ -140,6 +181,8 @@ function dbNoteToVoiceNote(dbNote: DBNote): VoiceNote {
     audioUrl: dbNote.audio_url || undefined,
     transcript: dbNote.transcript || undefined,
     parsedSummary: dbNote.parsed_summary || undefined,
+    title: (dbNote as any).title || undefined,
+    wordCount: (dbNote as any).word_count || undefined,
     parserId: dbNote.parser_id,
     status: dbNote.status,
     errorMessage: dbNote.error_message || undefined,
