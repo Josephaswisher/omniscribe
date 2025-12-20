@@ -1,16 +1,31 @@
-import { SpeechClient } from '@google-cloud/speech';
+// Dynamic import to avoid crashes if module fails to load
+let SpeechClient: any = null;
 
-// Initialize client with credentials from environment
-const getClient = () => {
+async function getClient() {
+  if (!SpeechClient) {
+    try {
+      const speech = await import('@google-cloud/speech');
+      SpeechClient = speech.SpeechClient;
+    } catch (err) {
+      console.error('[Speech-to-Text] Failed to load @google-cloud/speech:', err);
+      throw new Error('Speech-to-Text service unavailable');
+    }
+  }
+  
   const credentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
   if (credentials) {
-    return new SpeechClient({
-      credentials: JSON.parse(credentials)
-    });
+    try {
+      return new SpeechClient({
+        credentials: JSON.parse(credentials)
+      });
+    } catch (err) {
+      console.error('[Speech-to-Text] Failed to parse credentials:', err);
+      throw new Error('Invalid Speech-to-Text credentials');
+    }
   }
   // Fallback to ADC (Application Default Credentials)
   return new SpeechClient();
-};
+}
 
 export interface TranscriptionResult {
   transcript: string;
@@ -47,7 +62,7 @@ export async function transcribeAudio(
   audioBuffer: ArrayBuffer,
   mimeType: string
 ): Promise<TranscriptionResult> {
-  const client = getClient();
+  const client = await getClient();
   const audioBytes = Buffer.from(audioBuffer).toString('base64');
   const encoding = getEncoding(mimeType);
 
@@ -111,7 +126,7 @@ async function transcribeLongAudio(
   audioBuffer: ArrayBuffer,
   mimeType: string
 ): Promise<TranscriptionResult> {
-  const client = getClient();
+  const client = await getClient();
   const audioBytes = Buffer.from(audioBuffer).toString('base64');
   const encoding = getEncoding(mimeType);
 
