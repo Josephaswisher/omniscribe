@@ -56,7 +56,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       try {
         const base64Audio = Buffer.from(audioBuffer).toString('base64');
         const geminiResponse = await genai.models.generateContent({
-          model: 'gemini-3-flash',
+          model: 'gemini-2.5-flash',
           contents: {
             parts: [
               { inlineData: { mimeType, data: base64Audio } },
@@ -81,7 +81,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       try {
         console.log('[Retry] Step 2: Gemini cleanup');
         const cleanupResponse = await genai.models.generateContent({
-          model: 'gemini-3-flash',
+          model: 'gemini-2.5-flash',
           contents: `Clean up this speech-to-text transcript. Fix obvious errors, improve punctuation, and make it more readable while preserving the original meaning. Do not add or remove content. Output only the cleaned transcript:\n\n${transcript}`,
         });
         const cleanedTranscript = cleanupResponse.text?.trim();
@@ -100,7 +100,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (transcript && transcript.length > 10 && transcript !== 'No speech detected.') {
       try {
         const titleResponse = await genai.models.generateContent({
-          model: 'gemini-3-flash',
+          model: 'gemini-2.5-flash',
           contents: `Generate a concise descriptive title (3-6 words maximum) for this voice note. Output ONLY the title text, no quotes, no punctuation at the end:\n\n${transcript.substring(0, 500)}`,
         });
         title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '') || null;
@@ -122,7 +122,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       if (parser?.system_prompt) {
         try {
           const parsingResponse = await genai.models.generateContent({
-            model: 'gemini-3-flash',
+            model: 'gemini-2.5-flash',
             contents: `${parser.system_prompt}\n\nTranscript:\n${transcript}`,
           });
           parsedSummary = parsingResponse.text || null;
