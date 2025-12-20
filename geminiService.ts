@@ -26,7 +26,7 @@ export const transcribeAndParse = async (
 
   // Step 1: Transcription
   const transcriptionResponse = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash',
     contents: {
       parts: [
         {
@@ -47,7 +47,7 @@ export const transcribeAndParse = async (
   if (transcript && transcript.length > 10) {
     try {
       const titleResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash',
         contents: `Generate a short title (3-6 words) for this transcript. Output ONLY the title, nothing else:\n\n${transcript.substring(0, 500)}`,
       });
       title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '');
@@ -61,7 +61,7 @@ export const transcribeAndParse = async (
   let summary: string | undefined = undefined;
   if (parser && parser.id !== 'raw') {
     const parsingResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash',
       contents: `${parser.systemPrompt}\n\nTranscript:\n${transcript}`,
     });
     summary = parsingResponse.text;
