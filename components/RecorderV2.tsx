@@ -58,6 +58,13 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     };
   }, [isRecording, isPaused, updateWaveform]);
 
+  // Auto-start recording when opened in fullscreen mode
+  useEffect(() => {
+    if (isFullScreen && !isRecording) {
+      startRecording();
+    }
+  }, [isFullScreen]);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -148,7 +155,23 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   };
 
   const cancelRecording = () => {
-    stopRecording(false);
+    // Stop any ongoing recording
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+    
+    // Cleanup
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    audioContextRef.current?.close();
+
+    setIsRecording(false);
+    setIsPaused(false);
+    setElapsed(0);
+    setWaveformData([]);
+
+    if (onClose) onClose();
   };
 
   const formatTime = (seconds: number) => {
