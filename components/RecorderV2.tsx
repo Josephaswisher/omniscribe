@@ -36,13 +36,19 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
   const pauseStartRef = useRef<number>(0);
+  const isPausedRef = useRef<boolean>(false); // Ref to avoid stale closure
+
+  // Sync isPaused state with ref
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   // Use interval-based waveform updates for more reliable performance
   const startWaveformUpdates = useCallback(() => {
     if (waveformIntervalRef.current) return;
     
     waveformIntervalRef.current = setInterval(() => {
-      if (!analyserRef.current || isPaused) return;
+      if (!analyserRef.current || isPausedRef.current) return;
 
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
       analyserRef.current.getByteFrequencyData(dataArray);
@@ -60,7 +66,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
 
       setWaveformData(prev => [...prev.slice(-59), boosted]);
     }, 80); // ~12fps for smooth but efficient updates
-  }, [isPaused]);
+  }, []); // No deps - uses refs to avoid stale closures
 
   const stopWaveformUpdates = useCallback(() => {
     if (waveformIntervalRef.current) {
@@ -119,7 +125,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
       pausedTimeRef.current = 0;
 
       timerRef.current = setInterval(() => {
-        if (!isPaused) {
+        if (!isPausedRef.current) {
           const totalElapsed = Date.now() - startTimeRef.current - pausedTimeRef.current;
           setElapsed(Math.floor(totalElapsed / 1000));
         }

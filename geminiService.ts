@@ -6,7 +6,11 @@ export const transcribeAndParse = async (
   audioBlob: Blob,
   parser?: Parser
 ): Promise<{ transcript: string; summary?: string; title?: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Set VITE_GEMINI_API_KEY in environment.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   // Convert Blob to base64
   const reader = new FileReader();
@@ -22,7 +26,7 @@ export const transcribeAndParse = async (
 
   // Step 1: Transcription
   const transcriptionResponse = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     contents: {
       parts: [
         {
@@ -43,7 +47,7 @@ export const transcribeAndParse = async (
   if (transcript && transcript.length > 10) {
     try {
       const titleResponse = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         contents: `Generate a short title (3-6 words) for this transcript. Output ONLY the title, nothing else:\n\n${transcript.substring(0, 500)}`,
       });
       title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '');
@@ -57,7 +61,7 @@ export const transcribeAndParse = async (
   let summary: string | undefined = undefined;
   if (parser && parser.id !== 'raw') {
     const parsingResponse = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: `${parser.systemPrompt}\n\nTranscript:\n${transcript}`,
     });
     summary = parsingResponse.text;

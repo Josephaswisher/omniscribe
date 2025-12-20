@@ -23,6 +23,8 @@ export interface DBNote {
   error_message: string | null;
   gdrive_audio_id: string | null;
   gdrive_transcript_id: string | null;
+  title: string | null;
+  word_count: number | null;
 }
 
 export interface DBParser {

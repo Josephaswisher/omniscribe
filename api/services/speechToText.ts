@@ -19,19 +19,28 @@ export interface TranscriptionResult {
 }
 
 // Map browser MIME types to Speech-to-Text encoding
-function getEncoding(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'MP3' | 'LINEAR16' | 'FLAC' {
-  const map: Record<string, 'WEBM_OPUS' | 'OGG_OPUS' | 'MP3' | 'LINEAR16' | 'FLAC'> = {
+type AudioEncoding = 'WEBM_OPUS' | 'OGG_OPUS' | 'MP3' | 'LINEAR16' | 'FLAC' | 'ENCODING_UNSPECIFIED';
+
+function getEncoding(mimeType: string): AudioEncoding {
+  const normalizedMime = mimeType.toLowerCase().split(';')[0].trim();
+  const map: Record<string, AudioEncoding> = {
     'audio/webm': 'WEBM_OPUS',
-    'audio/webm;codecs=opus': 'WEBM_OPUS',
     'audio/ogg': 'OGG_OPUS',
-    'audio/ogg;codecs=opus': 'OGG_OPUS',
     'audio/mpeg': 'MP3',
     'audio/mp3': 'MP3',
     'audio/wav': 'LINEAR16',
+    'audio/wave': 'LINEAR16',
+    'audio/x-wav': 'LINEAR16',
     'audio/flac': 'FLAC',
+    'audio/x-flac': 'FLAC',
+    // MP4/M4A - let Speech-to-Text auto-detect (common on iOS)
+    'audio/mp4': 'ENCODING_UNSPECIFIED',
+    'audio/m4a': 'ENCODING_UNSPECIFIED',
+    'audio/x-m4a': 'ENCODING_UNSPECIFIED',
+    'audio/aac': 'ENCODING_UNSPECIFIED',
   };
-  // Default to WEBM_OPUS as that's what MediaRecorder typically produces
-  return map[mimeType] || 'WEBM_OPUS';
+  // Default to ENCODING_UNSPECIFIED to let the API auto-detect
+  return map[normalizedMime] || 'WEBM_OPUS';
 }
 
 export async function transcribeAudio(
@@ -45,16 +54,22 @@ export async function transcribeAudio(
   console.log(`[Speech-to-Text] Starting transcription, mimeType: ${mimeType}, encoding: ${encoding}, size: ${audioBuffer.byteLength}`);
 
   try {
+    // Build config - only include encoding if not ENCODING_UNSPECIFIED
+    const config: any = {
+      languageCode: 'en-US',
+      enableAutomaticPunctuation: true,
+      model: 'latest_long',
+      useEnhanced: true,
+    };
+    
+    if (encoding !== 'ENCODING_UNSPECIFIED') {
+      config.encoding = encoding;
+      config.sampleRateHertz = 48000; // WebM/Opus typically uses 48kHz
+    }
+    // For MP4/AAC, let the API auto-detect sample rate and encoding
+
     const [response] = await client.recognize({
-      config: {
-        encoding,
-        sampleRateHertz: 48000, // WebM/Opus typically uses 48kHz
-        languageCode: 'en-US',
-        enableAutomaticPunctuation: true,
-        model: 'latest_long', // Best for longer recordings
-        useEnhanced: true, // Use enhanced model for better accuracy
-        // Alternative models: 'phone_call', 'video', 'default', 'latest_short'
-      },
+      config,
       audio: {
         content: audioBytes,
       },
@@ -102,15 +117,20 @@ async function transcribeLongAudio(
 
   console.log(`[Speech-to-Text] Using long audio recognition for ${audioBuffer.byteLength} bytes`);
 
+  const config: any = {
+    languageCode: 'en-US',
+    enableAutomaticPunctuation: true,
+    model: 'latest_long',
+    useEnhanced: true,
+  };
+  
+  if (encoding !== 'ENCODING_UNSPECIFIED') {
+    config.encoding = encoding;
+    config.sampleRateHertz = 48000;
+  }
+
   const [operation] = await client.longRunningRecognize({
-    config: {
-      encoding,
-      sampleRateHertz: 48000,
-      languageCode: 'en-US',
-      enableAutomaticPunctuation: true,
-      model: 'latest_long',
-      useEnhanced: true,
-    },
+    config,
     audio: {
       content: audioBytes,
     },
