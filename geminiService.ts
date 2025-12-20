@@ -22,7 +22,7 @@ export const transcribeAndParse = async (
 
   // Step 1: Transcription
   const transcriptionResponse = await ai.models.generateContent({
-    model: 'gemini-2.0-flash-exp',
+    model: 'gemini-1.5-flash',
     contents: {
       parts: [
         {
@@ -31,7 +31,7 @@ export const transcribeAndParse = async (
             data: base64Audio,
           },
         },
-        { text: "Please transcribe this audio exactly as it is spoken. Do not add filler or commentary. Output ONLY the raw transcript text." }
+        { text: "Please transcribe this audio exactly as spoken. Output ONLY the transcript text, no commentary." }
       ],
     },
   });
@@ -43,13 +43,8 @@ export const transcribeAndParse = async (
   if (transcript && transcript.length > 10) {
     try {
       const titleResponse = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
-        contents: transcript,
-        config: {
-          systemInstruction: `Generate a short, descriptive title (3-6 words max) for this voice note transcript. 
-The title should capture the main topic or theme.
-Output ONLY the title text, no quotes, no punctuation at the end, no explanation.`,
-        },
+        model: 'gemini-1.5-flash',
+        contents: `Generate a short title (3-6 words) for this transcript. Output ONLY the title, nothing else:\n\n${transcript.substring(0, 500)}`,
       });
       title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '');
     } catch {
@@ -62,11 +57,8 @@ Output ONLY the title text, no quotes, no punctuation at the end, no explanation
   let summary: string | undefined = undefined;
   if (parser && parser.id !== 'raw') {
     const parsingResponse = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
-      contents: transcript,
-      config: {
-        systemInstruction: parser.systemPrompt,
-      },
+      model: 'gemini-1.5-flash',
+      contents: `${parser.systemPrompt}\n\nTranscript:\n${transcript}`,
     });
     summary = parsingResponse.text;
   }

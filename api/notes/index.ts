@@ -81,55 +81,52 @@ export async function POST(request: Request) {
 
     // 3. Transcribe with Gemini
     const base64Audio = Buffer.from(audioBuffer).toString('base64');
+    const mimeType = audioFile.type || 'audio/mp4';
+    
+    console.log(`Processing audio: ${fileName}, size: ${audioBuffer.byteLength}, mimeType: ${mimeType}`);
     
     let transcriptionResponse;
     try {
+      // Use gemini-1.5-flash for audio transcription (more stable)
       transcriptionResponse = await genai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-1.5-flash',
         contents: {
           parts: [
             {
               inlineData: {
-                mimeType: audioFile.type || 'audio/mp4',
+                mimeType: mimeType,
                 data: base64Audio,
               },
             },
-            { text: "Please transcribe this audio exactly as it is spoken. Do not add filler or commentary. Output ONLY the raw transcript text." }
+            { text: "Please transcribe this audio exactly as spoken. Output ONLY the transcript text, no commentary." }
           ],
         },
       });
-    } catch (transcribeError) {
-      console.error('Transcription error:', transcribeError);
+      console.log('Transcription successful');
+    } catch (transcribeError: any) {
+      console.error('Transcription error:', transcribeError?.message || transcribeError);
+      const errorMsg = transcribeError?.message || String(transcribeError);
       // Update note with error status
       await supabase
         .from('notes')
-        .update({ status: 'error', error_message: 'Transcription failed' })
+        .update({ status: 'error', error_message: `Transcription failed: ${errorMsg}` })
         .eq('id', noteId);
-      return Response.json({ error: 'Transcription failed', details: String(transcribeError) }, { status: 500 });
+      return Response.json({ error: 'Transcription failed', details: errorMsg }, { status: 500 });
     }
 
     const transcript = transcriptionResponse.text || '';
+    console.log(`Transcript length: ${transcript.length}`);
 
     // 4. Generate title from transcript
     let title: string | null = null;
     if (transcript && transcript.length > 10) {
       try {
         const titleResponse = await genai.models.generateContent({
-          model: 'gemini-2.0-flash-exp',
-          contents: transcript,
-          config: {
-            systemInstruction: `Generate a short, descriptive title (3-6 words max) for this voice note transcript. 
-The title should capture the main topic or theme.
-Output ONLY the title text, no quotes, no punctuation at the end, no explanation.
-Examples of good titles:
-- Weekly Team Standup Notes
-- Grocery Shopping List
-- Project Deadline Discussion
-- Morning Meditation Thoughts
-- Client Meeting Action Items`,
-          },
+          model: 'gemini-1.5-flash',
+          contents: `Generate a short title (3-6 words) for this transcript. Output ONLY the title, nothing else:\n\n${transcript.substring(0, 500)}`,
         });
         title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '') || null;
+        console.log(`Generated title: ${title}`);
       } catch (titleError) {
         console.error('Title generation error:', titleError);
         // Fall back to first few words of transcript
@@ -150,16 +147,13 @@ Examples of good titles:
       if (parser?.system_prompt) {
         try {
           const parsingResponse = await genai.models.generateContent({
-            model: 'gemini-2.0-flash-exp',
-            contents: transcript,
-            config: {
-              systemInstruction: parser.system_prompt,
-            },
+            model: 'gemini-1.5-flash',
+            contents: `${parser.system_prompt}\n\nTranscript:\n${transcript}`,
           });
           parsedSummary = parsingResponse.text || null;
+          console.log('Parsing successful');
         } catch (parseError) {
           console.error('Parsing error:', parseError);
-          // Continue without parsed summary
         }
       }
     }

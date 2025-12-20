@@ -39,10 +39,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const mimeType = audioResponse.headers.get('content-type') || 'audio/mp4';
 
     // Transcribe with Gemini
+    console.log(`Retrying transcription for note ${noteId}`);
     let transcriptionResponse;
     try {
       transcriptionResponse = await genai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-1.5-flash',
         contents: {
           parts: [
             {
@@ -51,33 +52,30 @@ export async function POST(request: Request, { params }: { params: { id: string 
                 data: base64Audio,
               },
             },
-            { text: "Please transcribe this audio exactly as it is spoken. Do not add filler or commentary. Output ONLY the raw transcript text." }
+            { text: "Please transcribe this audio exactly as spoken. Output ONLY the transcript text, no commentary." }
           ],
         },
       });
-    } catch (transcribeError) {
-      console.error('Transcription error:', transcribeError);
+      console.log('Retry transcription successful');
+    } catch (transcribeError: any) {
+      console.error('Transcription error:', transcribeError?.message || transcribeError);
       await supabase
         .from('notes')
-        .update({ status: 'error', error_message: 'Transcription failed' })
+        .update({ status: 'error', error_message: `Transcription failed: ${transcribeError?.message || transcribeError}` })
         .eq('id', noteId);
       return Response.json({ error: 'Transcription failed', details: String(transcribeError) }, { status: 500 });
     }
 
     const transcript = transcriptionResponse.text || '';
+    console.log(`Transcript length: ${transcript.length}`);
 
     // Generate title
     let title: string | null = null;
     if (transcript && transcript.length > 10) {
       try {
         const titleResponse = await genai.models.generateContent({
-          model: 'gemini-2.0-flash-exp',
-          contents: transcript,
-          config: {
-            systemInstruction: `Generate a short, descriptive title (3-6 words max) for this voice note transcript. 
-The title should capture the main topic or theme.
-Output ONLY the title text, no quotes, no punctuation at the end, no explanation.`,
-          },
+          model: 'gemini-1.5-flash',
+          contents: `Generate a short title (3-6 words) for this transcript. Output ONLY the title, nothing else:\n\n${transcript.substring(0, 500)}`,
         });
         title = titleResponse.text?.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '') || null;
       } catch {
@@ -98,11 +96,8 @@ Output ONLY the title text, no quotes, no punctuation at the end, no explanation
       if (parser?.system_prompt) {
         try {
           const parsingResponse = await genai.models.generateContent({
-            model: 'gemini-2.0-flash-exp',
-            contents: transcript,
-            config: {
-              systemInstruction: parser.system_prompt,
-            },
+            model: 'gemini-1.5-flash',
+            contents: `${parser.system_prompt}\n\nTranscript:\n${transcript}`,
           });
           parsedSummary = parsingResponse.text || null;
         } catch (parseError) {
