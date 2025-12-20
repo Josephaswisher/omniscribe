@@ -35,9 +35,19 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
+  const waveformDataRef = useRef<number[]>([]);
+  const lastUpdateRef = useRef<number>(0);
 
   const updateWaveform = useCallback(() => {
-    if (!analyserRef.current || !isRecording || isPaused) return;
+    if (!analyserRef.current) return;
+
+    const now = Date.now();
+    // Throttle updates to ~10fps to prevent UI freeze
+    if (now - lastUpdateRef.current < 100) {
+      animationRef.current = requestAnimationFrame(updateWaveform);
+      return;
+    }
+    lastUpdateRef.current = now;
 
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
@@ -45,13 +55,17 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
     const normalized = Math.min(1, average / 128);
 
-    setWaveformData(prev => [...prev.slice(-60), normalized]);
+    waveformDataRef.current = [...waveformDataRef.current.slice(-60), normalized];
+    setWaveformData([...waveformDataRef.current]);
+    
     animationRef.current = requestAnimationFrame(updateWaveform);
-  }, [isRecording, isPaused]);
+  }, []);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
       animationRef.current = requestAnimationFrame(updateWaveform);
+    } else if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
     }
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -63,6 +77,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     if (isFullScreen && !isRecording) {
       startRecording();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFullScreen]);
 
   const startRecording = async () => {
@@ -252,7 +267,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
           </motion.div>
 
           {/* Waveform */}
-          <div className="w-full max-w-md mb-12 px-4">
+          <div className="w-full max-w-md mb-12 px-4 pointer-events-none">
             <Waveform
               data={waveformData}
               isRecording={isRecording}
@@ -279,7 +294,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
         </div>
 
         {/* Controls */}
-        <div className="safe-bottom px-6 pb-8">
+        <div className="safe-bottom px-6 pb-8 relative z-10">
           <div className="flex items-center justify-center gap-8">
             {/* Cancel Button */}
             <motion.button

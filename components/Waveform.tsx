@@ -15,6 +15,10 @@ const Waveform: React.FC<WaveformProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
 
+  // Store data in ref to avoid re-running effect on every data change
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -32,8 +36,8 @@ const Waveform: React.FC<WaveformProps> = ({
       ctx.clearRect(0, 0, rect.width, rect.height);
       
       const totalBars = Math.floor(rect.width / (barWidth + barGap));
-      const displayData = data.length > 0 
-        ? data.slice(-totalBars) 
+      const displayData = dataRef.current.length > 0 
+        ? dataRef.current.slice(-totalBars) 
         : new Array(totalBars).fill(0.1);
 
       const centerY = rect.height / 2;
@@ -46,13 +50,9 @@ const Waveform: React.FC<WaveformProps> = ({
         const progressRatio = progress > 0 ? index / displayData.length : (isRecording ? 1 : 0.5);
         
         if (isRecording && !isPaused) {
-          const pulseOffset = Math.sin(Date.now() / 200 + index * 0.3) * 0.15;
-          const adjustedHeight = barHeight * (1 + pulseOffset);
-          const adjustedY = centerY - adjustedHeight / 2;
-          
           ctx.fillStyle = primaryColor;
           ctx.beginPath();
-          ctx.roundRect(x, adjustedY, barWidth, adjustedHeight, [barWidth / 2]);
+          ctx.roundRect(x, y, barWidth, barHeight, [barWidth / 2]);
           ctx.fill();
         } else {
           const isPlayed = index / displayData.length <= progressRatio;
@@ -75,7 +75,7 @@ const Waveform: React.FC<WaveformProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [data, isRecording, isPaused, progress, height, barWidth, barGap, primaryColor, secondaryColor]);
+  }, [isRecording, isPaused, progress, height, barWidth, barGap, primaryColor, secondaryColor]);
 
   return (
     <canvas
