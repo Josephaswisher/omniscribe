@@ -53,15 +53,28 @@ const Waveform: React.FC<WaveformProps> = ({
     const resizeCanvas = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = container.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
+      // Ensure we have valid dimensions
+      const containerWidth = rect.width > 0 ? rect.width : 300;
+      canvas.width = containerWidth * dpr;
       canvas.height = height * dpr;
-      canvas.style.width = `${rect.width}px`;
+      canvas.style.width = `${containerWidth}px`;
       canvas.style.height = `${height}px`;
     };
 
+    // Initial resize
     resizeCanvas();
+    
+    // Use ResizeObserver for more reliable updates
+    const resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+    resizeObserver.observe(container);
+
     window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      resizeObserver.disconnect();
+    };
   }, [height]);
 
   // Draw waveform whenever data or state changes
@@ -75,11 +88,18 @@ const Waveform: React.FC<WaveformProps> = ({
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.width / dpr;
     const canvasHeight = canvas.height / dpr;
+    
+    // Skip drawing if dimensions aren't set yet
+    if (width <= 0 || canvasHeight <= 0) return;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, canvasHeight);
 
-    const totalBars = Math.floor(width / (barWidth + barGap));
+    // Limit bars to prevent performance issues on wide screens
+    const maxBars = 100;
+    const calculatedBars = Math.floor(width / (barWidth + barGap));
+    const totalBars = Math.min(calculatedBars, maxBars);
+    
     const displayData = data.length > 0 
       ? data.slice(-totalBars) 
       : new Array(totalBars).fill(0.15);
@@ -91,9 +111,13 @@ const Waveform: React.FC<WaveformProps> = ({
 
     const centerY = canvasHeight / 2;
     const radius = Math.min(barWidth / 2, 2);
+    
+    // Center the waveform if we're limiting bars
+    const waveformWidth = totalBars * (barWidth + barGap);
+    const offsetX = Math.max(0, (width - waveformWidth) / 2);
 
     displayData.forEach((value, index) => {
-      const x = index * (barWidth + barGap);
+      const x = offsetX + index * (barWidth + barGap);
       const barHeight = Math.max(4, value * (canvasHeight - 8));
       const y = centerY - barHeight / 2;
 

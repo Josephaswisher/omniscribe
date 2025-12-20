@@ -94,15 +94,23 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
 
   const startRecording = async () => {
     try {
+      console.log('[Recorder] Starting recording...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      console.log('[Recorder] Got media stream');
 
       // Setup audio analysis
       audioContextRef.current = new AudioContext();
+      // Resume AudioContext (required on some browsers after user gesture)
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+        console.log('[Recorder] AudioContext resumed');
+      }
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
       source.connect(analyserRef.current);
+      console.log('[Recorder] Audio analysis setup complete');
 
       // Setup MediaRecorder
       const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
@@ -118,22 +126,29 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
       };
 
       recorder.start(100); // Collect data every 100ms for pause support
+      console.log('[Recorder] MediaRecorder started');
+      
+      // Update state
       setIsRecording(true);
       setIsPaused(false);
+      isPausedRef.current = false;
       setWaveformData([]);
       startTimeRef.current = Date.now();
       pausedTimeRef.current = 0;
 
+      // Start timer
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         if (!isPausedRef.current) {
           const totalElapsed = Date.now() - startTimeRef.current - pausedTimeRef.current;
           setElapsed(Math.floor(totalElapsed / 1000));
         }
       }, 100);
+      console.log('[Recorder] Timer started');
 
       if ('vibrate' in navigator) navigator.vibrate(50);
     } catch (err) {
-      console.error('Failed to start recording', err);
+      console.error('[Recorder] Failed to start recording', err);
       alert('Please allow microphone access to record notes.');
     }
   };
