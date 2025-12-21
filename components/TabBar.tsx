@@ -1,6 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Home, FolderOpen, Mic, Search, CheckSquare } from "lucide-react";
+import {
+  Home,
+  FolderOpen,
+  Mic,
+  Search,
+  CheckSquare,
+  MessageCircle,
+} from "lucide-react";
 import { TabId, TabBarProps } from "../types";
 
 const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
@@ -14,6 +21,7 @@ const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
 const TabBar: React.FC<TabBarProps> = ({
   activeTab,
   onTabChange,
+  onOpenAssistant,
   pendingActionsCount = 0,
 }) => {
   return (
@@ -34,18 +42,35 @@ const TabBar: React.FC<TabBarProps> = ({
                 }`}
               >
                 {isRecordTab ? (
-                  <motion.div
-                    whileTap={{ scale: 0.9 }}
-                    className={`w-14 h-14 -mt-6 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 border ${
-                      isActive
-                        ? "bg-rgb-red border-rgb-red glow-red"
-                        : "bg-terminal-hover border-terminal-border hover:border-rgb-cyan"
-                    }`}
-                  >
-                    <Icon
-                      className={`w-6 h-6 ${isActive ? "text-white" : "text-rgb-cyan"}`}
-                    />
-                  </motion.div>
+                  <div className="flex items-end gap-2 -mt-6">
+                    {/* Ask OmniScribe button */}
+                    {onOpenAssistant && (
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenAssistant();
+                        }}
+                        className="w-10 h-10 rounded-lg bg-terminal-surface border border-terminal-border flex items-center justify-center shadow-md hover:border-rgb-purple hover:bg-terminal-hover transition-all"
+                        title="Ask OmniScribe"
+                      >
+                        <MessageCircle className="w-4 h-4 text-rgb-purple" />
+                      </motion.button>
+                    )}
+                    {/* Record button */}
+                    <motion.div
+                      whileTap={{ scale: 0.9 }}
+                      className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 border ${
+                        isActive
+                          ? "bg-rgb-red border-rgb-red glow-red"
+                          : "bg-terminal-hover border-terminal-border hover:border-rgb-cyan"
+                      }`}
+                    >
+                      <Icon
+                        className={`w-6 h-6 ${isActive ? "text-white" : "text-rgb-cyan"}`}
+                      />
+                    </motion.div>
+                  </div>
                 ) : (
                   <>
                     <motion.div

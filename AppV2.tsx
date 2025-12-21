@@ -672,6 +672,7 @@ const App: React.FC = () => {
       <TabBar
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        onOpenAssistant={() => setCurrentView("assistant")}
         pendingActionsCount={pendingActionsCount}
       />
 

@@ -193,6 +193,7 @@ export interface RecordingState {
 export interface TabBarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
+  onOpenAssistant?: () => void;
   pendingActionsCount?: number;
 }
 
