@@ -302,6 +302,7 @@ const App: React.FC = () => {
       audioBlob: blob,
       parserId: selectedParserId,
       status: isOffline ? "pending" : "processing",
+      source: "recorded",
     };
 
     setNotes((prev) => [newNote, ...prev]);
@@ -332,6 +333,9 @@ const App: React.FC = () => {
         parserId: selectedParserId,
         status: isOffline ? "pending" : "processing",
         title: file.name.replace(/\.[^/.]+$/, ""), // Use filename without extension as title
+        source: "uploaded",
+        uploadedFileType: file.type || file.name.split(".").pop(),
+        uploadedFileSize: file.size,
       };
 
       setNotes((prev) => [newNote, ...prev]);

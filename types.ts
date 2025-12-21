@@ -28,6 +28,10 @@ export interface VoiceNote {
   // V3.0: Multi-language support
   detectedLanguage?: string;
   languageCode?: string;
+  // V3.1: Upload tracking
+  source?: "recorded" | "uploaded";
+  uploadedFileType?: string;
+  uploadedFileSize?: number;
 }
 
 export interface Parser {

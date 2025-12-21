@@ -1,11 +1,17 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  X, Mic, Clock, FileText, CheckCircle, 
-  TrendingUp, Calendar, Zap 
-} from 'lucide-react';
-import { VoiceNote, Action, Parser } from '../types';
-import { format, subDays, startOfDay, isWithinInterval } from 'date-fns';
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
+import {
+  X,
+  Mic,
+  Clock,
+  FileText,
+  CheckCircle,
+  TrendingUp,
+  Calendar,
+  Zap,
+} from "lucide-react";
+import { VoiceNote, Action, Parser } from "../types";
+import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
 
 interface AnalyticsViewProps {
   notes: VoiceNote[];
@@ -14,23 +20,30 @@ interface AnalyticsViewProps {
   onBack: () => void;
 }
 
-const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, onBack }) => {
+const AnalyticsView: React.FC<AnalyticsViewProps> = ({
+  notes,
+  actions,
+  parsers,
+  onBack,
+}) => {
   const stats = useMemo(() => {
     const now = new Date();
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = subDays(now, 6 - i);
       return {
         date: startOfDay(date),
-        label: format(date, 'EEE'),
+        label: format(date, "EEE"),
         count: 0,
         duration: 0,
       };
     });
 
     // Calculate daily stats
-    notes.forEach(note => {
+    notes.forEach((note) => {
       const noteDate = startOfDay(new Date(note.createdAt));
-      const dayEntry = last7Days.find(d => d.date.getTime() === noteDate.getTime());
+      const dayEntry = last7Days.find(
+        (d) => d.date.getTime() === noteDate.getTime(),
+      );
       if (dayEntry) {
         dayEntry.count++;
         dayEntry.duration += note.duration;
@@ -40,33 +53,61 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
     // Total stats
     const totalDuration = notes.reduce((sum, n) => sum + n.duration, 0);
     const totalWords = notes.reduce((sum, n) => sum + (n.wordCount || 0), 0);
-    
+
     // Completed actions
-    const completedActions = actions.filter(a => a.status === 'completed').length;
-    const pendingActions = actions.filter(a => a.status === 'pending').length;
-    const actionCompletionRate = actions.length > 0 
-      ? Math.round((completedActions / actions.length) * 100) 
-      : 0;
+    const completedActions = actions.filter(
+      (a) => a.status === "completed",
+    ).length;
+    const pendingActions = actions.filter((a) => a.status === "pending").length;
+    const actionCompletionRate =
+      actions.length > 0
+        ? Math.round((completedActions / actions.length) * 100)
+        : 0;
 
     // Parser usage
     const parserCounts: Record<string, number> = {};
-    notes.forEach(note => {
+    notes.forEach((note) => {
       parserCounts[note.parserId] = (parserCounts[note.parserId] || 0) + 1;
     });
     const parserUsage = Object.entries(parserCounts)
       .map(([id, count]) => ({
-        parser: parsers.find(p => p.id === id)?.name || id,
+        parser: parsers.find((p) => p.id === id)?.name || id,
         count,
         percentage: Math.round((count / notes.length) * 100) || 0,
       }))
+      .sort((a, b) => b.count - a.count);
+
+    // V3.1: Upload analytics
+    const uploadedNotes = notes.filter((n) => n.source === "uploaded");
+    const recordedNotes = notes.filter(
+      (n) => n.source === "recorded" || !n.source,
+    );
+    const uploadCount = uploadedNotes.length;
+    const recordedCount = recordedNotes.length;
+    const totalUploadSize = uploadedNotes.reduce(
+      (sum, n) => sum + (n.uploadedFileSize || 0),
+      0,
+    );
+    const avgUploadSize =
+      uploadCount > 0 ? Math.round(totalUploadSize / uploadCount) : 0;
+
+    // File format breakdown
+    const formatCounts: Record<string, number> = {};
+    uploadedNotes.forEach((note) => {
+      const format = note.uploadedFileType?.split("/").pop() || "unknown";
+      formatCounts[format] = (formatCounts[format] || 0) + 1;
+    });
+    const formatUsage = Object.entries(formatCounts)
+      .map(([format, count]) => ({ format: format.toUpperCase(), count }))
       .sort((a, b) => b.count - a.count);
 
     // Calculate streak
     let streak = 0;
     let checkDate = startOfDay(now);
     while (true) {
-      const hasNote = notes.some(n => 
-        startOfDay(new Date(n.createdAt)).getTime() === checkDate.getTime()
+      const hasNote = notes.some(
+        (n) =>
+          startOfDay(new Date(n.createdAt)).getTime() === checkDate.getTime(),
       );
       if (hasNote) {
         streak++;
@@ -77,7 +118,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
     }
 
     // Max for chart scaling
-    const maxDailyCount = Math.max(...last7Days.map(d => d.count), 1);
+    const maxDailyCount = Math.max(...last7Days.map((d) => d.count), 1);
 
     return {
       totalNotes: notes.length,
@@ -90,7 +131,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
       streak,
       last7Days,
       maxDailyCount,
-      avgDuration: notes.length > 0 ? Math.round(totalDuration / notes.length) : 0,
+      avgDuration:
+        notes.length > 0 ? Math.round(totalDuration / notes.length) : 0,
+      // V3.1: Upload stats
+      uploadCount,
+      recordedCount,
+      avgUploadSize,
+      formatUsage,
     };
   }, [notes, actions, parsers]);
 
@@ -111,10 +158,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
   }> = ({ icon: Icon, label, value, subtext, color }) => (
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center`}>
+        <div
+          className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center`}
+        >
           <Icon className="w-4 h-4 text-white" />
         </div>
-        <span className="text-xs text-slate-500 uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-slate-500 uppercase tracking-wider">
+          {label}
+        </span>
       </div>
       <div className="text-2xl font-bold text-white">{value}</div>
       {subtext && <div className="text-xs text-slate-500 mt-1">{subtext}</div>}
@@ -123,9 +174,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
 
   return (
     <motion.div
-      initial={{ x: '100%' }}
+      initial={{ x: "100%" }}
       animate={{ x: 0 }}
-      exit={{ x: '100%' }}
+      exit={{ x: "100%" }}
       className="fixed inset-0 z-50 flex flex-col bg-slate-900"
     >
       {/* Header */}
@@ -150,8 +201,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
               <Zap className="w-6 h-6 text-amber-400" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-amber-400">{stats.streak} Day Streak!</div>
-              <div className="text-sm text-amber-200/70">Keep recording daily</div>
+              <div className="text-2xl font-bold text-amber-400">
+                {stats.streak} Day Streak!
+              </div>
+              <div className="text-sm text-amber-200/70">
+                Keep recording daily
+              </div>
             </div>
           </div>
         )}
@@ -199,14 +254,19 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
             <div className="flex items-end justify-between h-32 gap-2">
               {stats.last7Days.map((day, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div
+                  key={i}
+                  className="flex-1 flex flex-col items-center gap-2"
+                >
                   <div className="w-full flex flex-col items-center justify-end h-24">
                     <motion.div
                       initial={{ height: 0 }}
-                      animate={{ height: `${(day.count / stats.maxDailyCount) * 100}%` }}
+                      animate={{
+                        height: `${(day.count / stats.maxDailyCount) * 100}%`,
+                      }}
                       transition={{ delay: i * 0.05 }}
                       className={`w-full rounded-t-md ${
-                        day.count > 0 ? 'bg-indigo-500' : 'bg-slate-700'
+                        day.count > 0 ? "bg-indigo-500" : "bg-slate-700"
                       }`}
                       style={{ minHeight: day.count > 0 ? 8 : 4 }}
                     />
@@ -255,16 +315,63 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notes, actions, parsers, 
           </div>
         </section>
 
+        {/* Upload Stats - V3.1 */}
+        {stats.uploadCount > 0 && (
+          <section>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">
+              Upload Stats
+            </h2>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-4">
+              {/* Source breakdown */}
+              <div className="flex gap-4">
+                <div className="flex-1 text-center p-3 bg-slate-700/30 rounded-lg">
+                  <div className="text-xl font-bold text-cyan-400">
+                    {stats.uploadCount}
+                  </div>
+                  <div className="text-xs text-slate-500">Uploaded</div>
+                </div>
+                <div className="flex-1 text-center p-3 bg-slate-700/30 rounded-lg">
+                  <div className="text-xl font-bold text-indigo-400">
+                    {stats.recordedCount}
+                  </div>
+                  <div className="text-xs text-slate-500">Recorded</div>
+                </div>
+                <div className="flex-1 text-center p-3 bg-slate-700/30 rounded-lg">
+                  <div className="text-xl font-bold text-slate-300">
+                    {(stats.avgUploadSize / (1024 * 1024)).toFixed(1)}MB
+                  </div>
+                  <div className="text-xs text-slate-500">Avg Size</div>
+                </div>
+              </div>
+              {/* Format breakdown */}
+              {stats.formatUsage.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {stats.formatUsage.map((item, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded text-xs font-mono"
+                    >
+                      {item.format}: {item.count}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Tips */}
         <section className="pb-8">
           <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-medium text-slate-300 mb-1">Pro Tip</h3>
+                <h3 className="text-sm font-medium text-slate-300 mb-1">
+                  Pro Tip
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Try recording at the same time each day to build a consistent habit. 
-                  Morning voice notes are great for planning your day!
+                  Try recording at the same time each day to build a consistent
+                  habit. Morning voice notes are great for planning your day!
                 </p>
               </div>
             </div>
