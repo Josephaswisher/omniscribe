@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from '@google/genai';
+import { ragSearchService } from '../services/ragSearch';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
-
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // Tool definitions for Claude Agent SDK
 export const toolDefinitions = [
@@ -35,7 +33,7 @@ export const toolDefinitions = [
   },
   {
     name: 'search_notes',
-    description: 'Semantic search across all notes using AI embeddings. Returns notes most relevant to the query.',
+    description: 'Search across all notes using semantic AI embeddings with keyword fallback. Returns notes with relevanceScore (0-100) and matchType (semantic/keyword).',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -112,26 +110,24 @@ export const toolHandlers: Record<string, (input: Record<string, unknown>) => Pr
       throw new Error('query is required');
     }
 
-    // Generate query embedding with Gemini
-    const embeddingResponse = await genai.models.embedContent({
-      model: 'text-embedding-004',
-      contents: query.trim(),
+    // Use RAGSearchService with semantic + keyword fallback
+    const results = await ragSearchService.search(query.trim(), {
+      topK: Number(topK),
+      threshold: 0.5,
+      includeKeywordFallback: true
     });
 
-    const queryEmbedding = embeddingResponse.embeddings?.[0]?.values;
-    if (!queryEmbedding || queryEmbedding.length === 0) {
-      throw new Error('Failed to generate query embedding');
-    }
-
-    // Search using pgvector
-    const { data, error } = await supabase.rpc('search_notes_by_embedding', {
-      query_embedding: `[${queryEmbedding.join(',')}]`,
-      match_threshold: 0.5,
-      match_count: Number(topK)
-    });
-
-    if (error) throw new Error(`Search failed: ${error.message}`);
-    return data || [];
+    // Return results with relevance scores
+    return results.map(r => ({
+      id: r.id,
+      title: r.title,
+      transcript: r.transcript?.substring(0, 300) + (r.transcript && r.transcript.length > 300 ? '...' : ''),
+      parsed_summary: r.parsed_summary?.substring(0, 300) + (r.parsed_summary && r.parsed_summary.length > 300 ? '...' : ''),
+      created_at: r.created_at,
+      word_count: r.word_count,
+      relevanceScore: r.relevanceScore,
+      matchType: r.matchType
+    }));
   },
 
   async list_actions({ status = 'all' }: Record<string, unknown>) {

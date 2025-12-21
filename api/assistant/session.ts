@@ -1,14 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { toolDefinitions, executeTool } from './tools';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!
-});
-
 export const config = {
   runtime: 'nodejs',
   maxDuration: 120
 };
+
+// Lazy initialization to catch missing API key errors
+function getAnthropicClient(): Anthropic {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
+  }
+  if (!apiKey.startsWith('sk-ant-')) {
+    throw new Error('Invalid ANTHROPIC_API_KEY format. Key should start with sk-ant-');
+  }
+  return new Anthropic({ apiKey });
+}
 
 const SYSTEM_PROMPT = `You are OmniScribe Assistant, a helpful AI that helps users manage and understand their voice notes.
 
@@ -47,6 +55,9 @@ export async function POST(request: Request) {
       role: m.role,
       content: m.content
     }));
+
+    // Get Anthropic client (validates API key)
+    const anthropic = getAnthropicClient();
 
     // Agent loop - keep calling until we get a final response
     let currentMessages = [...anthropicMessages];
