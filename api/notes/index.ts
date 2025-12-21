@@ -81,25 +81,80 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to create note' }, { status: 500 });
     }
 
-    // 3. TRANSCRIPTION: Using Gemini for audio transcription
+    // 3. TRANSCRIPTION: Using Gemini for audio transcription with word-level timestamps
     const mimeType = audioFile.type || 'audio/webm';
     console.log(`Processing audio: ${fileName}, size: ${audioBuffer.byteLength}, mimeType: ${mimeType}`);
-    
+
     let transcript = '';
-    
+    let segments: Array<{ start_ms: number; end_ms: number; text: string; confidence?: number }> = [];
+    let detectedLanguage: string | null = null;
+    let languageCode: string | null = null;
+
     try {
-      console.log('[Transcription] Using Gemini for transcription');
+      console.log('[Transcription] Using Gemini for transcription with segments and language detection');
       const base64Audio = Buffer.from(audioBuffer).toString('base64');
+
+      // Request structured transcription with timestamps and language detection
       const geminiResponse = await genai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: {
           parts: [
             { inlineData: { mimeType, data: base64Audio } },
-            { text: "Generate a verbatim transcript of this audio. Output only the transcript text, no timestamps, no speaker labels, no commentary. If the audio is unclear or silent, output 'No speech detected.'" }
+            { text: `Transcribe this audio with word-level timestamps. Detect the spoken language. Return JSON in this exact format:
+{
+  "transcript": "full transcript text here",
+  "language": "English",
+  "languageCode": "en",
+  "segments": [
+    {"start_ms": 0, "end_ms": 500, "text": "word or phrase", "confidence": 0.95},
+    {"start_ms": 500, "end_ms": 1000, "text": "next words", "confidence": 0.92}
+  ]
+}
+
+Rules:
+- Detect the primary spoken language and return both full name and ISO 639-1 code
+- Common codes: en (English), es (Spanish), fr (French), de (German), zh (Chinese), ja (Japanese), ko (Korean), pt (Portuguese), ar (Arabic), hi (Hindi), ru (Russian), it (Italian)
+- Segment by natural phrases (2-5 words each)
+- Times in milliseconds from audio start
+- Confidence 0.0-1.0 (estimate based on audio clarity)
+- If silent/unclear: {"transcript": "No speech detected.", "language": "Unknown", "languageCode": "und", "segments": []}
+- Output ONLY valid JSON, no markdown, no code fences` }
           ],
         },
       });
-      transcript = geminiResponse.text || '';
+
+      const responseText = geminiResponse.text || '';
+
+      // Parse the JSON response
+      try {
+        // Clean any markdown code fences if present
+        const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        transcript = parsed.transcript || '';
+        segments = parsed.segments || [];
+        detectedLanguage = parsed.language || null;
+        languageCode = parsed.languageCode || null;
+        console.log(`[Transcription] Parsed ${segments.length} segments, language: ${detectedLanguage} (${languageCode})`);
+      } catch (parseError) {
+        // Fallback: use response as plain transcript
+        console.warn('[Transcription] JSON parse failed, using plain text');
+        transcript = responseText.replace(/```json\n?|\n?```/g, '').trim();
+        // Try to extract just the transcript if it's a malformed JSON
+        const transcriptMatch = transcript.match(/"transcript"\s*:\s*"([^"]+)"/);
+        if (transcriptMatch) {
+          transcript = transcriptMatch[1];
+        }
+        // Try to extract language from malformed JSON
+        const languageMatch = responseText.match(/"language"\s*:\s*"([^"]+)"/);
+        if (languageMatch) {
+          detectedLanguage = languageMatch[1];
+        }
+        const codeMatch = responseText.match(/"languageCode"\s*:\s*"([^"]+)"/);
+        if (codeMatch) {
+          languageCode = codeMatch[1];
+        }
+      }
+
       console.log(`[Transcription] Complete, length: ${transcript.length}`);
     } catch (transcribeError: any) {
       console.error('[Transcription] Failed:', transcribeError?.message);
@@ -152,7 +207,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 6. Update note with transcript, title, and summary
+    // 6. Update note with transcript, title, summary, and language
     const { data: updatedNote, error: updateError } = await supabase
       .from('notes')
       .update({
@@ -160,7 +215,9 @@ export async function POST(request: Request) {
         title,
         parsed_summary: parsedSummary,
         status: 'completed',
-        word_count: transcript ? transcript.split(/\s+/).length : 0
+        word_count: transcript ? transcript.split(/\s+/).length : 0,
+        detected_language: detectedLanguage,
+        language_code: languageCode
       })
       .eq('id', noteId)
       .select()
@@ -171,7 +228,40 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to update note' }, { status: 500 });
     }
 
-    // 7. Generate embedding for semantic search (async, non-blocking)
+    // 7. Store transcript segments for audio sync playback
+    if (segments.length > 0) {
+      try {
+        console.log(`[Segments] Storing ${segments.length} segments for note:`, noteId);
+
+        // Clear any existing segments for this note (in case of re-processing)
+        await supabase.from('note_segments').delete().eq('note_id', noteId);
+
+        // Insert new segments
+        const segmentRows = segments.map((seg) => ({
+          note_id: noteId,
+          start_ms: seg.start_ms,
+          end_ms: seg.end_ms,
+          text: seg.text,
+          speaker_label: 'Speaker 1', // Default, diarization will update later
+          confidence: seg.confidence ?? null
+        }));
+
+        const { error: segmentError } = await supabase
+          .from('note_segments')
+          .insert(segmentRows);
+
+        if (segmentError) {
+          console.error('[Segments] Insert error:', segmentError);
+        } else {
+          console.log(`[Segments] Stored ${segmentRows.length} segments`);
+        }
+      } catch (segmentErr) {
+        console.error('[Segments] Failed:', segmentErr);
+        // Don't fail the request, segments are optional
+      }
+    }
+
+    // 8. Generate embedding for semantic search (async, non-blocking)
     if (transcript && transcript.length > 20 && transcript !== 'No speech detected.') {
       try {
         console.log('[Embedding] Generating embedding for note:', noteId);

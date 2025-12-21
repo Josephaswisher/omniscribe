@@ -1,6 +1,14 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Parser } from './types';
+import { Parser, TranscriptSegment } from './types';
+
+// Segment type for local transcription (without database fields)
+export interface LocalTranscriptSegment {
+  start_ms: number;
+  end_ms: number;
+  text: string;
+  confidence?: number;
+}
 
 // Check if local Gemini API is available
 export const isLocalTranscriptionAvailable = (): boolean => {
@@ -10,7 +18,14 @@ export const isLocalTranscriptionAvailable = (): boolean => {
 export const transcribeAndParse = async (
   audioBlob: Blob,
   parser?: Parser
-): Promise<{ transcript: string; summary?: string; title?: string }> => {
+): Promise<{
+  transcript: string;
+  summary?: string;
+  title?: string;
+  segments?: LocalTranscriptSegment[];
+  detectedLanguage?: string;
+  languageCode?: string;
+}> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -33,7 +48,12 @@ export const transcribeAndParse = async (
   
   const base64Audio = await base64Promise;
 
-  // Step 1: Transcription
+  // Step 1: Transcription with word-level timestamps and language detection
+  let transcript = '';
+  let segments: LocalTranscriptSegment[] = [];
+  let detectedLanguage: string | undefined;
+  let languageCode: string | undefined;
+
   const transcriptionResponse = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: {
@@ -44,12 +64,61 @@ export const transcribeAndParse = async (
             data: base64Audio,
           },
         },
-        { text: "Please transcribe this audio exactly as spoken. Output ONLY the transcript text, no commentary." }
+        { text: `Transcribe this audio with word-level timestamps. Detect the spoken language. Return JSON in this exact format:
+{
+  "transcript": "full transcript text here",
+  "language": "English",
+  "languageCode": "en",
+  "segments": [
+    {"start_ms": 0, "end_ms": 500, "text": "word or phrase", "confidence": 0.95},
+    {"start_ms": 500, "end_ms": 1000, "text": "next words", "confidence": 0.92}
+  ]
+}
+
+Rules:
+- Detect the primary spoken language and return both full name and ISO 639-1 code
+- Common codes: en (English), es (Spanish), fr (French), de (German), zh (Chinese), ja (Japanese), ko (Korean), pt (Portuguese), ar (Arabic), hi (Hindi), ru (Russian), it (Italian)
+- Segment by natural phrases (2-5 words each)
+- Times in milliseconds from audio start
+- Confidence 0.0-1.0 (estimate based on audio clarity)
+- If silent/unclear: {"transcript": "No speech detected.", "language": "Unknown", "languageCode": "und", "segments": []}
+- Output ONLY valid JSON, no markdown, no code fences` }
       ],
     },
   });
 
-  const transcript = transcriptionResponse.text || "Transcription failed.";
+  const responseText = transcriptionResponse.text || '';
+
+  // Parse JSON response with fallback to plain text
+  try {
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    transcript = parsed.transcript || '';
+    segments = parsed.segments || [];
+    detectedLanguage = parsed.language;
+    languageCode = parsed.languageCode;
+  } catch {
+    // Fallback: use response as plain transcript
+    transcript = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    // Try to extract transcript from malformed JSON
+    const transcriptMatch = transcript.match(/"transcript"\s*:\s*"([^"]+)"/);
+    if (transcriptMatch) {
+      transcript = transcriptMatch[1];
+    }
+    // Try to extract language from malformed JSON
+    const languageMatch = transcript.match(/"language"\s*:\s*"([^"]+)"/);
+    if (languageMatch) {
+      detectedLanguage = languageMatch[1];
+    }
+    const codeMatch = transcript.match(/"languageCode"\s*:\s*"([^"]+)"/);
+    if (codeMatch) {
+      languageCode = codeMatch[1];
+    }
+  }
+
+  if (!transcript) {
+    transcript = 'Transcription failed.';
+  }
 
   // Step 2: Generate title from transcript
   let title: string | undefined = undefined;
@@ -76,5 +145,5 @@ export const transcribeAndParse = async (
     summary = parsingResponse.text;
   }
 
-  return { transcript, summary, title };
+  return { transcript, summary, title, segments, detectedLanguage, languageCode };
 };

@@ -23,6 +23,11 @@ export interface VoiceNote {
   tags?: Tag[];
   bookmarks?: Bookmark[];
   actions?: Action[];
+  // V3.0: Transcript-audio sync
+  segments?: TranscriptSegment[];
+  // V3.0: Multi-language support
+  detectedLanguage?: string;
+  languageCode?: string;
 }
 
 export interface Parser {

@@ -142,6 +142,9 @@ const App: React.FC = () => {
           title: result.title,
           status: 'completed',
           wordCount: result.transcript.split(/\s+/).length,
+          segments: result.segments,
+          detectedLanguage: result.detectedLanguage,
+          languageCode: result.languageCode,
         };
       }
 
