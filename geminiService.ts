@@ -2,13 +2,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { Parser } from './types';
 
+// Check if local Gemini API is available
+export const isLocalTranscriptionAvailable = (): boolean => {
+  return !!import.meta.env.VITE_GEMINI_API_KEY;
+};
+
 export const transcribeAndParse = async (
   audioBlob: Blob,
   parser?: Parser
 ): Promise<{ transcript: string; summary?: string; title?: string }> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('Gemini API key not configured. Set VITE_GEMINI_API_KEY in environment.');
+    throw new Error(
+      'Gemini API key not configured for local mode. ' +
+      'Either set VITE_GEMINI_API_KEY in your .env.local file, ' +
+      'or enable cloud sync with Supabase credentials.'
+    );
   }
   const ai = new GoogleGenAI({ apiKey });
   

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { AppSettings, ThemeMode } from '../types';
 import { isCloudEnabled } from '../services/supabase';
+import { isLocalTranscriptionAvailable } from '../geminiService';
 
 interface SettingsV2Props {
   settings: AppSettings;
@@ -186,6 +187,22 @@ const SettingsV2: React.FC<SettingsV2Props> = ({
                 <div className={`w-3 h-3 rounded-full ${isCloudEnabled() ? 'bg-green-500' : 'bg-amber-500'}`} />
               }
             />
+
+            {/* Transcription Mode Indicator */}
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <Info className="w-5 h-5 text-slate-400" />
+                <span className="text-slate-200 font-medium">Transcription Mode</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {isCloudEnabled() 
+                  ? '☁️ Cloud: Using Vercel API + Gemini'
+                  : isLocalTranscriptionAvailable()
+                    ? '💻 Local: Using browser + Gemini API'
+                    : '⚠️ No transcription available - configure VITE_GEMINI_API_KEY'
+                }
+              </p>
+            </div>
 
             <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
