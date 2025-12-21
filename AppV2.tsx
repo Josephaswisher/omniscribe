@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { AnimatePresence } from "framer-motion";
-import { Settings } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Settings, Upload, Loader2 } from "lucide-react";
 import { db } from "./db";
 import {
   VoiceNote,
@@ -74,6 +74,22 @@ const App: React.FC = () => {
 
   // Toast notifications
   const { showError, showSuccess } = useToast();
+
+  // File upload ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Supported audio types for upload
+  const ACCEPTED_TYPES = [
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/mp4a-latm",
+    "audio/wav",
+    "audio/wave",
+    "audio/x-wav",
+    "audio/webm",
+    "audio/ogg",
+  ];
 
   // Initialize
   useEffect(() => {
@@ -525,12 +541,77 @@ const App: React.FC = () => {
             )}
           </div>
         </div>
-        <button
-          onClick={() => setCurrentView("settings")}
-          className="w-10 h-10 rounded-lg bg-terminal-surface border border-terminal-border flex items-center justify-center text-neutral-500 hover:text-white hover:border-terminal-muted transition-colors"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Hidden file input for upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_TYPES.join(",")}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                // Extract duration and call handleFileUpload
+                const audioCtx = new (
+                  window.AudioContext || (window as any).webkitAudioContext
+                )();
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                  try {
+                    const arrayBuffer = ev.target?.result as ArrayBuffer;
+                    const audioBuffer =
+                      await audioCtx.decodeAudioData(arrayBuffer);
+                    audioCtx.close();
+                    handleFileUpload(file, audioBuffer.duration);
+                  } catch {
+                    audioCtx.close();
+                    // Fallback to audio element
+                    const audio = new Audio();
+                    audio.src = URL.createObjectURL(file);
+                    audio.onloadedmetadata = () => {
+                      URL.revokeObjectURL(audio.src);
+                      handleFileUpload(file, audio.duration);
+                    };
+                    audio.onerror = () => {
+                      URL.revokeObjectURL(audio.src);
+                      showError(
+                        "Cannot read audio file",
+                        "The file may be corrupted or unsupported.",
+                      );
+                    };
+                  }
+                };
+                reader.readAsArrayBuffer(file);
+              }
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
+          {/* Upload button */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className={`w-10 h-10 rounded-lg border flex items-center justify-center transition-colors ${
+              isUploading
+                ? "bg-rgb-cyan/20 border-rgb-cyan"
+                : "bg-terminal-surface border-terminal-border text-neutral-500 hover:text-rgb-cyan hover:border-rgb-cyan"
+            }`}
+            title="Upload audio file"
+          >
+            {isUploading ? (
+              <Loader2 className="w-5 h-5 text-rgb-cyan animate-spin" />
+            ) : (
+              <Upload className="w-5 h-5" />
+            )}
+          </motion.button>
+          {/* Settings button */}
+          <button
+            onClick={() => setCurrentView("settings")}
+            className="w-10 h-10 rounded-lg bg-terminal-surface border border-terminal-border flex items-center justify-center text-neutral-500 hover:text-white hover:border-terminal-muted transition-colors"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -591,8 +672,6 @@ const App: React.FC = () => {
       <TabBar
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        onUploadFile={handleFileUpload}
-        isUploading={isUploading}
         pendingActionsCount={pendingActionsCount}
       />
 

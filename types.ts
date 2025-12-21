@@ -193,8 +193,6 @@ export interface RecordingState {
 export interface TabBarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
-  onUploadFile?: (file: File, duration: number) => void;
-  isUploading?: boolean;
   pendingActionsCount?: number;
 }
 

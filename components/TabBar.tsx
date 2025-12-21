@@ -1,32 +1,7 @@
-import React, { useRef, useState, useCallback } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import {
-  Home,
-  FolderOpen,
-  Mic,
-  Search,
-  CheckSquare,
-  Upload,
-  Loader2,
-} from "lucide-react";
+import { Home, FolderOpen, Mic, Search, CheckSquare } from "lucide-react";
 import { TabId, TabBarProps } from "../types";
-import { useToast, UploadErrors } from "./Toast";
-
-// Supported audio MIME types
-const ACCEPTED_TYPES = [
-  "audio/mpeg",
-  "audio/mp4",
-  "audio/x-m4a",
-  "audio/mp4a-latm",
-  "audio/wav",
-  "audio/wave",
-  "audio/x-wav",
-  "audio/webm",
-  "audio/ogg",
-];
-const ACCEPTED_EXTENSIONS = [".mp3", ".mp4", ".m4a", ".wav", ".webm", ".ogg"];
-const MAX_SIZE_MB = 100;
-const MAX_DURATION_MIN = 30;
 
 const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
   { id: "home", icon: Home, label: "Home" },
@@ -39,121 +14,8 @@ const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
 const TabBar: React.FC<TabBarProps> = ({
   activeTab,
   onTabChange,
-  onUploadFile,
-  isUploading = false,
   pendingActionsCount = 0,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [validating, setValidating] = useState(false);
-  const [lastFile, setLastFile] = useState<File | null>(null);
-  const { showError } = useToast();
-
-  // Extract audio duration using Web Audio API
-  const extractDuration = useCallback(async (file: File): Promise<number> => {
-    return new Promise((resolve, reject) => {
-      const audioContext = new (
-        window.AudioContext || (window as any).webkitAudioContext
-      )();
-      const reader = new FileReader();
-
-      reader.onload = async (e) => {
-        try {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          audioContext.close();
-          resolve(audioBuffer.duration);
-        } catch {
-          audioContext.close();
-          // Fallback to audio element
-          const audio = new Audio();
-          audio.src = URL.createObjectURL(file);
-          audio.onloadedmetadata = () => {
-            URL.revokeObjectURL(audio.src);
-            resolve(audio.duration);
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(audio.src);
-            reject(new Error("Could not read audio duration"));
-          };
-        }
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsArrayBuffer(file);
-    });
-  }, []);
-
-  // Process file with validation
-  const processFile = useCallback(
-    async (file: File) => {
-      if (!onUploadFile) return;
-
-      // Validate extension
-      const ext = "." + file.name.split(".").pop()?.toLowerCase();
-      if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-        const error = UploadErrors.UNSUPPORTED_FORMAT(ACCEPTED_EXTENSIONS);
-        showError(error.title, error.description);
-        return;
-      }
-
-      // Validate size
-      const sizeMB = file.size / (1024 * 1024);
-      if (sizeMB > MAX_SIZE_MB) {
-        const error = UploadErrors.FILE_TOO_LARGE(sizeMB, MAX_SIZE_MB);
-        showError(error.title, error.description);
-        return;
-      }
-
-      setValidating(true);
-      setLastFile(file);
-
-      try {
-        const duration = await extractDuration(file);
-        const durationMinutes = duration / 60;
-
-        if (durationMinutes > MAX_DURATION_MIN) {
-          const error = UploadErrors.DURATION_TOO_LONG(
-            durationMinutes,
-            MAX_DURATION_MIN,
-          );
-          showError(error.title, error.description);
-          setValidating(false);
-          return;
-        }
-
-        onUploadFile(file, duration);
-        setLastFile(null);
-      } catch (err) {
-        console.error("[TabBar] Audio file read error:", err);
-        showError(
-          UploadErrors.CORRUPTED_FILE.title,
-          UploadErrors.CORRUPTED_FILE.description,
-          () => {
-            // Retry: re-trigger file picker
-            fileInputRef.current?.click();
-          },
-        );
-      } finally {
-        setValidating(false);
-      }
-    },
-    [onUploadFile, extractDuration, showError],
-  );
-
-  const handleFileSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
-      processFile(file);
-    },
-    [processFile],
-  );
-
-  const handleUploadClick = () => {
-    if (!validating && !isUploading) {
-      fileInputRef.current?.click();
-    }
-  };
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
       <div className="mx-4 mb-4 bg-terminal-surface/95 backdrop-blur-xl border border-terminal-border rounded-xl shadow-2xl shadow-black/40">
@@ -172,54 +34,18 @@ const TabBar: React.FC<TabBarProps> = ({
                 }`}
               >
                 {isRecordTab ? (
-                  <div className="flex items-end gap-2 -mt-6">
-                    {/* Upload Button - Left of Record */}
-                    {onUploadFile && (
-                      <>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept={ACCEPTED_TYPES.join(",")}
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUploadClick();
-                          }}
-                          disabled={validating || isUploading}
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-md transition-all duration-300 border ${
-                            validating || isUploading
-                              ? "bg-rgb-cyan/20 border-rgb-cyan animate-pulse"
-                              : "bg-terminal-surface border-terminal-border hover:border-rgb-cyan hover:bg-terminal-hover"
-                          }`}
-                          title="Upload audio file"
-                        >
-                          {validating || isUploading ? (
-                            <Loader2 className="w-4 h-4 text-rgb-cyan animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4 text-rgb-cyan" />
-                          )}
-                        </motion.button>
-                      </>
-                    )}
-
-                    {/* Record Button - Main FAB */}
-                    <motion.div
-                      whileTap={{ scale: 0.9 }}
-                      className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 border ${
-                        isActive
-                          ? "bg-rgb-red border-rgb-red glow-red"
-                          : "bg-terminal-hover border-terminal-border hover:border-rgb-cyan"
-                      }`}
-                    >
-                      <Icon
-                        className={`w-6 h-6 ${isActive ? "text-white" : "text-rgb-cyan"}`}
-                      />
-                    </motion.div>
-                  </div>
+                  <motion.div
+                    whileTap={{ scale: 0.9 }}
+                    className={`w-14 h-14 -mt-6 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 border ${
+                      isActive
+                        ? "bg-rgb-red border-rgb-red glow-red"
+                        : "bg-terminal-hover border-terminal-border hover:border-rgb-cyan"
+                    }`}
+                  >
+                    <Icon
+                      className={`w-6 h-6 ${isActive ? "text-white" : "text-rgb-cyan"}`}
+                    />
+                  </motion.div>
                 ) : (
                   <>
                     <motion.div
