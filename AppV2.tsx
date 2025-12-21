@@ -24,6 +24,7 @@ import ActionsHub from './components/ActionsHub';
 import NoteDetailV2 from './components/NoteDetailV2';
 import SettingsV2 from './components/SettingsV2';
 import TemplateBuilder from './components/TemplateBuilder';
+import AnalyticsView from './components/AnalyticsView';
 
 const defaultSettings: AppSettings = {
   cloudSyncEnabled: true,
@@ -500,6 +501,7 @@ const App: React.FC = () => {
               setActions([]);
             }}
             onOpenTemplateBuilder={() => setCurrentView('template-builder')}
+            onOpenAnalytics={() => setCurrentView('analytics')}
             noteCount={notes.length}
           />
         )}
@@ -518,6 +520,18 @@ const App: React.FC = () => {
             }}
             onDeleteTemplate={(id) => setTemplates(prev => prev.filter(t => t.id !== id))}
             onUseAsParser={handleUseTemplateAsParser}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Analytics */}
+      <AnimatePresence>
+        {currentView === 'analytics' && (
+          <AnalyticsView
+            notes={notes}
+            actions={actions}
+            parsers={parsers}
+            onBack={() => setCurrentView('settings')}
           />
         )}
       </AnimatePresence>

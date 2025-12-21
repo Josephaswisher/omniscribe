@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { VoiceNote, Parser, Folder, Tag as TagType, Bookmark as BookmarkType } from '../types';
 import Waveform from './Waveform';
+import ExportModal from './ExportModal';
 import { format } from 'date-fns';
 
 interface NoteDetailV2Props {
@@ -47,6 +48,7 @@ const NoteDetailV2: React.FC<NoteDetailV2Props> = ({
   const [showMenu, setShowMenu] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(note.title || '');
   
@@ -148,8 +150,9 @@ const NoteDetailV2: React.FC<NoteDetailV2Props> = ({
           
           <div className="flex items-center gap-2">
             <button
-              onClick={handleShare}
+              onClick={() => setShowExportModal(true)}
               className="w-10 h-10 rounded-full bg-slate-800/50 flex items-center justify-center"
+              title="Export"
             >
               <Share2 className="w-5 h-5 text-slate-300" />
             </button>
@@ -447,6 +450,14 @@ const NoteDetailV2: React.FC<NoteDetailV2Props> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        note={note}
+        parser={parser}
+      />
     </motion.div>
   );
 };

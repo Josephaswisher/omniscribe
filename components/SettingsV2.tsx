@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   X, Cloud, CloudOff, Moon, Sun, Monitor, Smartphone, 
   HardDrive, Vibrate, Zap, ChevronRight, ExternalLink,
-  Info, Database, Trash2
+  Info, Database, Trash2, TrendingUp
 } from 'lucide-react';
 import { AppSettings, ThemeMode } from '../types';
 import { isCloudEnabled } from '../services/supabase';
@@ -15,6 +15,7 @@ interface SettingsV2Props {
   onSettingsChange: (settings: Partial<AppSettings>) => void;
   onClearData: () => void;
   onOpenTemplateBuilder: () => void;
+  onOpenAnalytics?: () => void;
   storageUsed?: number;
   noteCount?: number;
 }
@@ -25,6 +26,7 @@ const SettingsV2: React.FC<SettingsV2Props> = ({
   onSettingsChange,
   onClearData,
   onOpenTemplateBuilder,
+  onOpenAnalytics,
   storageUsed = 0,
   noteCount = 0,
 }) => {
@@ -302,17 +304,27 @@ const SettingsV2: React.FC<SettingsV2Props> = ({
           </div>
         </section>
 
-        {/* Templates */}
+        {/* Templates & Analytics */}
         <section>
           <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">
-            Templates
+            Tools
           </h2>
-          <SettingRow
-            icon={Zap}
-            label="Template Builder"
-            description="Create custom AI processing templates"
-            onClick={onOpenTemplateBuilder}
-          />
+          <div className="space-y-3">
+            <SettingRow
+              icon={Zap}
+              label="Template Builder"
+              description="Create custom AI processing templates"
+              onClick={onOpenTemplateBuilder}
+            />
+            {onOpenAnalytics && (
+              <SettingRow
+                icon={TrendingUp}
+                label="Analytics"
+                description="View your recording stats and habits"
+                onClick={onOpenAnalytics}
+              />
+            )}
+          </div>
         </section>
 
         {/* Data & Storage */}
