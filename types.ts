@@ -102,9 +102,20 @@ export interface Analytics {
   pendingActions: number;
 }
 
+// V3.0 Transcript Segments for audio sync
+export interface TranscriptSegment {
+  id: string;
+  note_id: string;
+  start_ms: number;
+  end_ms: number;
+  text: string;
+  speaker_label?: string;
+  confidence?: number;
+}
+
 // Navigation
 export type TabId = 'home' | 'folders' | 'record' | 'search' | 'actions';
-export type AppView = 'main' | 'detail' | 'settings' | 'template-builder' | 'folder-detail' | 'analytics';
+export type AppView = 'main' | 'detail' | 'settings' | 'template-builder' | 'folder-detail' | 'analytics' | 'assistant';
 
 // Theme
 export type ThemeMode = 'light' | 'dark' | 'system';

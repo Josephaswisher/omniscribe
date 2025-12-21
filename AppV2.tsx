@@ -25,6 +25,7 @@ import NoteDetailV2 from './components/NoteDetailV2';
 import SettingsV2 from './components/SettingsV2';
 import TemplateBuilder from './components/TemplateBuilder';
 import AnalyticsView from './components/AnalyticsView';
+import { AssistantChat } from './components/AssistantChat';
 
 const defaultSettings: AppSettings = {
   cloudSyncEnabled: true,
@@ -502,6 +503,7 @@ const App: React.FC = () => {
             }}
             onOpenTemplateBuilder={() => setCurrentView('template-builder')}
             onOpenAnalytics={() => setCurrentView('analytics')}
+            onOpenAssistant={() => setCurrentView('assistant')}
             noteCount={notes.length}
           />
         )}
@@ -533,6 +535,13 @@ const App: React.FC = () => {
             parsers={parsers}
             onBack={() => setCurrentView('settings')}
           />
+        )}
+      </AnimatePresence>
+
+      {/* AI Assistant Chat */}
+      <AnimatePresence>
+        {currentView === 'assistant' && (
+          <AssistantChat onClose={() => setCurrentView('main')} />
         )}
       </AnimatePresence>
 

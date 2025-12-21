@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   X, Cloud, CloudOff, Moon, Sun, Monitor, Smartphone, 
   HardDrive, Vibrate, Zap, ChevronRight, ExternalLink,
-  Info, Database, Trash2, TrendingUp
+  Info, Database, Trash2, TrendingUp, MessageCircle
 } from 'lucide-react';
 import { AppSettings, ThemeMode } from '../types';
 import { isCloudEnabled } from '../services/supabase';
@@ -16,6 +16,7 @@ interface SettingsV2Props {
   onClearData: () => void;
   onOpenTemplateBuilder: () => void;
   onOpenAnalytics?: () => void;
+  onOpenAssistant?: () => void;
   storageUsed?: number;
   noteCount?: number;
 }
@@ -27,6 +28,7 @@ const SettingsV2: React.FC<SettingsV2Props> = ({
   onClearData,
   onOpenTemplateBuilder,
   onOpenAnalytics,
+  onOpenAssistant,
   storageUsed = 0,
   noteCount = 0,
 }) => {
@@ -310,6 +312,14 @@ const SettingsV2: React.FC<SettingsV2Props> = ({
             Tools
           </h2>
           <div className="space-y-3">
+            {onOpenAssistant && (
+              <SettingRow
+                icon={MessageCircle}
+                label="Ask OmniScribe"
+                description="AI assistant - chat with your notes"
+                onClick={onOpenAssistant}
+              />
+            )}
             <SettingRow
               icon={Zap}
               label="Template Builder"
@@ -380,7 +390,7 @@ const SettingsV2: React.FC<SettingsV2Props> = ({
               </div>
               <div>
                 <h3 className="text-white font-bold">OmniScribe</h3>
-                <p className="text-sm text-slate-500">Version 2.0.0</p>
+                <p className="text-sm text-slate-500">Version 3.0.0</p>
               </div>
             </div>
             <p className="text-sm text-slate-400">

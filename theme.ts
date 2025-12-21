@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ThemeColors, ThemeMode } from './types';
 
 // Terminal-inspired with RGB accents (Claude UI inspired)
@@ -70,4 +71,21 @@ export const statusColors = {
   processing: '#3b82f6',
   completed: '#10b981',
   error: '#ef4444',
+};
+
+// Hook to get the current theme (defaults to dark for simplicity)
+export const useTheme = (): ThemeColors => {
+  return useMemo(() => {
+    // Check localStorage for theme preference
+    try {
+      const savedSettings = localStorage.getItem('omniscribe_settings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        return getTheme(settings.theme || 'dark');
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return darkTheme;
+  }, []);
 };

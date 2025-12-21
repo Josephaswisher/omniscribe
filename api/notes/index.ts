@@ -171,6 +171,29 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to update note' }, { status: 500 });
     }
 
+    // 7. Generate embedding for semantic search (async, non-blocking)
+    if (transcript && transcript.length > 20 && transcript !== 'No speech detected.') {
+      try {
+        console.log('[Embedding] Generating embedding for note:', noteId);
+        const embeddingResponse = await genai.models.embedContent({
+          model: 'text-embedding-004',
+          contents: transcript,
+        });
+        const embedding = embeddingResponse.embeddings?.[0]?.values;
+        
+        if (embedding && embedding.length > 0) {
+          await supabase
+            .from('notes')
+            .update({ embedding: `[${embedding.join(',')}]` })
+            .eq('id', noteId);
+          console.log('[Embedding] Stored embedding, dimension:', embedding.length);
+        }
+      } catch (embedError) {
+        console.error('[Embedding] Failed:', embedError);
+        // Don't fail the request, embedding is optional
+      }
+    }
+
     return Response.json({ note: updatedNote });
   } catch (error) {
     console.error('POST /api/notes error:', error);
