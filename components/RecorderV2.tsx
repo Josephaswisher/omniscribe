@@ -1,8 +1,35 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Pause, Play, Square, X, Check } from 'lucide-react';
-import Waveform from './Waveform';
-import { Parser } from '../types';
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Mic,
+  Pause,
+  Play,
+  Square,
+  X,
+  Check,
+  Upload,
+  Loader2,
+  FileAudio,
+} from "lucide-react";
+import Waveform from "./Waveform";
+import { Parser } from "../types";
+import { useToast, UploadErrors } from "./Toast";
+
+// Supported audio MIME types for upload
+const ACCEPTED_TYPES = [
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/mp4a-latm",
+  "audio/wav",
+  "audio/wave",
+  "audio/x-wav",
+  "audio/webm",
+  "audio/ogg",
+];
+const ACCEPTED_EXTENSIONS = [".mp3", ".mp4", ".m4a", ".wav", ".webm", ".ogg"];
+const MAX_SIZE_MB = 100;
+const MAX_DURATION_MIN = 30;
 
 interface RecorderV2Props {
   onRecordingComplete: (blob: Blob, duration: number) => void;
@@ -11,6 +38,9 @@ interface RecorderV2Props {
   onParserChange: (id: string) => void;
   isFullScreen?: boolean;
   onClose?: () => void;
+  // Upload support
+  onUploadFile?: (file: File, duration: number) => void;
+  isUploading?: boolean;
 }
 
 const RecorderV2: React.FC<RecorderV2Props> = ({
@@ -20,19 +50,31 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   onParserChange,
   isFullScreen = false,
   onClose,
+  onUploadFile,
+  isUploading = false,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [waveformData, setWaveformData] = useState<number[]>([]);
-  
+
+  // Upload state
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isValidatingUpload, setIsValidatingUpload] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Toast notifications
+  const { showError, showWarning } = useToast();
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const waveformIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waveformIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
   const pauseStartRef = useRef<number>(0);
@@ -46,7 +88,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   // Use interval-based waveform updates for more reliable performance
   const startWaveformUpdates = useCallback(() => {
     if (waveformIntervalRef.current) return;
-    
+
     waveformIntervalRef.current = setInterval(() => {
       if (!analyserRef.current || isPausedRef.current) return;
 
@@ -60,11 +102,11 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
       }
       const rms = Math.sqrt(sum / dataArray.length);
       const normalized = Math.min(1, rms / 128);
-      
+
       // Add some visual variation
       const boosted = Math.min(1, normalized * 1.5 + 0.1);
 
-      setWaveformData(prev => [...prev.slice(-59), boosted]);
+      setWaveformData((prev) => [...prev.slice(-59), boosted]);
     }, 80); // ~12fps for smooth but efficient updates
   }, []); // No deps - uses refs to avoid stale closures
 
@@ -94,28 +136,30 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
 
   const startRecording = async () => {
     try {
-      console.log('[Recorder] Starting recording...');
+      console.log("[Recorder] Starting recording...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      console.log('[Recorder] Got media stream');
+      console.log("[Recorder] Got media stream");
 
       // Setup audio analysis
       audioContextRef.current = new AudioContext();
       // Resume AudioContext (required on some browsers after user gesture)
-      if (audioContextRef.current.state === 'suspended') {
+      if (audioContextRef.current.state === "suspended") {
         await audioContextRef.current.resume();
-        console.log('[Recorder] AudioContext resumed');
+        console.log("[Recorder] AudioContext resumed");
       }
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
       source.connect(analyserRef.current);
-      console.log('[Recorder] Audio analysis setup complete');
+      console.log("[Recorder] Audio analysis setup complete");
 
       // Setup MediaRecorder
-      const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
-        ? 'audio/mp4'
-        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      const mimeType = MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "";
 
       const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
@@ -126,8 +170,8 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
       };
 
       recorder.start(100); // Collect data every 100ms for pause support
-      console.log('[Recorder] MediaRecorder started');
-      
+      console.log("[Recorder] MediaRecorder started");
+
       // Update state
       setIsRecording(true);
       setIsPaused(false);
@@ -140,16 +184,20 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         if (!isPausedRef.current) {
-          const totalElapsed = Date.now() - startTimeRef.current - pausedTimeRef.current;
+          const totalElapsed =
+            Date.now() - startTimeRef.current - pausedTimeRef.current;
           setElapsed(Math.floor(totalElapsed / 1000));
         }
       }, 100);
-      console.log('[Recorder] Timer started');
+      console.log("[Recorder] Timer started");
 
-      if ('vibrate' in navigator) navigator.vibrate(50);
+      if ("vibrate" in navigator) navigator.vibrate(50);
     } catch (err) {
-      console.error('[Recorder] Failed to start recording', err);
-      alert('Please allow microphone access to record notes.');
+      console.error("[Recorder] Failed to start recording", err);
+      showWarning(
+        "Microphone access required",
+        "Please allow microphone access in your browser settings to record notes.",
+      );
     }
   };
 
@@ -166,7 +214,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
         mediaRecorderRef.current.pause();
         setIsPaused(true);
       }
-      if ('vibrate' in navigator) navigator.vibrate(30);
+      if ("vibrate" in navigator) navigator.vibrate(30);
     }
   };
 
@@ -174,18 +222,18 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     if (!mediaRecorderRef.current || !isRecording) return;
 
     mediaRecorderRef.current.stop();
-    
+
     if (timerRef.current) clearInterval(timerRef.current);
     stopWaveformUpdates();
 
     if (save && chunksRef.current.length > 0) {
-      const mimeType = mediaRecorderRef.current.mimeType || 'audio/ogg';
+      const mimeType = mediaRecorderRef.current.mimeType || "audio/ogg";
       const blob = new Blob(chunksRef.current, { type: mimeType });
       onRecordingComplete(blob, elapsed);
     }
 
     // Cleanup
-    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     audioContextRef.current?.close();
 
     setIsRecording(false);
@@ -193,7 +241,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     setElapsed(0);
     setWaveformData([]);
 
-    if ('vibrate' in navigator) navigator.vibrate([30, 30]);
+    if ("vibrate" in navigator) navigator.vibrate([30, 30]);
     if (onClose) onClose();
   };
 
@@ -202,11 +250,11 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
     }
-    
+
     // Cleanup
     if (timerRef.current) clearInterval(timerRef.current);
     stopWaveformUpdates();
-    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     audioContextRef.current?.close();
 
     setIsRecording(false);
@@ -220,7 +268,140 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // ─── Upload Handlers ───────────────────────────────────────────────
+
+  // Extract audio duration using Web Audio API
+  const extractDuration = useCallback(async (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const audioCtx = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )();
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+          audioCtx.close();
+          resolve(audioBuffer.duration);
+        } catch {
+          audioCtx.close();
+          // Fallback to audio element
+          const audio = new Audio();
+          audio.src = URL.createObjectURL(file);
+          audio.onloadedmetadata = () => {
+            URL.revokeObjectURL(audio.src);
+            resolve(audio.duration);
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(audio.src);
+            reject(new Error("Could not read audio duration"));
+          };
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsArrayBuffer(file);
+    });
+  }, []);
+
+  const handleFileSelect = useCallback(
+    async (file: File) => {
+      if (!onUploadFile || isValidatingUpload || isUploading) return;
+
+      // Validate extension
+      const ext = "." + file.name.split(".").pop()?.toLowerCase();
+      if (!ACCEPTED_EXTENSIONS.includes(ext)) {
+        const error = UploadErrors.UNSUPPORTED_FORMAT(ACCEPTED_EXTENSIONS);
+        showError(error.title, error.description);
+        return;
+      }
+
+      // Validate size
+      const sizeMB = file.size / (1024 * 1024);
+      if (sizeMB > MAX_SIZE_MB) {
+        const error = UploadErrors.FILE_TOO_LARGE(sizeMB, MAX_SIZE_MB);
+        showError(error.title, error.description);
+        return;
+      }
+
+      setIsValidatingUpload(true);
+
+      try {
+        const duration = await extractDuration(file);
+        const durationMinutes = duration / 60;
+
+        if (durationMinutes > MAX_DURATION_MIN) {
+          const error = UploadErrors.DURATION_TOO_LONG(
+            durationMinutes,
+            MAX_DURATION_MIN,
+          );
+          showError(error.title, error.description);
+          setIsValidatingUpload(false);
+          return;
+        }
+
+        onUploadFile(file, duration);
+        if (onClose) onClose();
+      } catch (err) {
+        console.error("[RecorderV2] Audio file read error:", err);
+        showError(
+          UploadErrors.CORRUPTED_FILE.title,
+          UploadErrors.CORRUPTED_FILE.description,
+          () => {
+            // Retry: open file picker
+            fileInputRef.current?.click();
+          },
+        );
+      } finally {
+        setIsValidatingUpload(false);
+      }
+    },
+    [
+      onUploadFile,
+      isValidatingUpload,
+      isUploading,
+      extractDuration,
+      onClose,
+      showError,
+    ],
+  );
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(file);
+    e.target.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isRecording && onUploadFile) setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    if (isRecording || !onUploadFile) return;
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleUploadClick = () => {
+    if (!isValidatingUpload && !isUploading && !isRecording) {
+      fileInputRef.current?.click();
+    }
   };
 
   if (!isFullScreen && !isRecording) {
@@ -244,11 +425,47 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
         initial={{ opacity: 0, y: 100 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 100 }}
-        className={`${isFullScreen ? 'fixed inset-0 z-50' : ''} bg-terminal-bg flex flex-col`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`${isFullScreen ? "fixed inset-0 z-50" : ""} bg-terminal-bg flex flex-col`}
       >
+        {/* Hidden file input for upload */}
+        {onUploadFile && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_TYPES.join(",")}
+            onChange={handleInputChange}
+            className="hidden"
+          />
+        )}
+
+        {/* Drag-over overlay */}
+        <AnimatePresence>
+          {isDragOver && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-rgb-cyan/10 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-rgb-cyan rounded-xl m-4"
+            >
+              <div className="text-center">
+                <FileAudio className="w-12 h-12 text-rgb-cyan mx-auto mb-3" />
+                <p className="text-lg font-mono font-semibold text-rgb-cyan">
+                  Drop audio file
+                </p>
+                <p className="text-xs font-mono text-neutral-400 mt-1">
+                  MP3, M4A, WAV, WebM, OGG
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Subtle grid background */}
         <div className="absolute inset-0 grid-bg opacity-30 pointer-events-none" />
-        
+
         {/* Header with Parser Selection */}
         <div className="relative safe-top px-6 py-4 border-b border-terminal-border">
           <div className="flex items-center justify-between mb-4">
@@ -267,14 +484,14 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
 
           {/* Parser Pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {parsers.map(parser => (
+            {parsers.map((parser) => (
               <button
                 key={parser.id}
                 onClick={() => onParserChange(parser.id)}
                 className={`whitespace-nowrap px-4 py-2 rounded-lg text-xs font-mono font-semibold transition-all border ${
                   selectedParserId === parser.id
-                    ? 'bg-rgb-cyan text-black border-rgb-cyan'
-                    : 'bg-terminal-surface text-neutral-400 border-terminal-border hover:border-terminal-muted'
+                    ? "bg-rgb-cyan text-black border-rgb-cyan"
+                    : "bg-terminal-surface text-neutral-400 border-terminal-border hover:border-terminal-muted"
                 }`}
               >
                 {parser.name}
@@ -291,9 +508,11 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
             transition={{ repeat: isPaused ? Infinity : 0, duration: 1 }}
             className="mb-8"
           >
-            <span className={`text-6xl font-mono font-medium tracking-tight ${
-              isPaused ? 'text-rgb-yellow' : 'text-white'
-            }`}>
+            <span
+              className={`text-6xl font-mono font-medium tracking-tight ${
+                isPaused ? "text-rgb-yellow" : "text-white"
+              }`}
+            >
               {formatTime(elapsed)}
             </span>
           </motion.div>
@@ -307,7 +526,7 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
               height={80}
               barWidth={4}
               barGap={3}
-              primaryColor={isPaused ? '#fbbf24' : '#22d3ee'}
+              primaryColor={isPaused ? "#fbbf24" : "#22d3ee"}
               secondaryColor="#262626"
             />
           </div>
@@ -317,10 +536,12 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
             <motion.div
               animate={{ opacity: isPaused ? [1, 0.3, 1] : [1, 0.5, 1] }}
               transition={{ repeat: Infinity, duration: isPaused ? 1.5 : 0.8 }}
-              className={`w-2 h-2 rounded-full ${isPaused ? 'bg-rgb-yellow' : 'bg-rgb-red'}`}
+              className={`w-2 h-2 rounded-full ${isPaused ? "bg-rgb-yellow" : "bg-rgb-red"}`}
             />
-            <span className={`text-xs font-mono font-semibold uppercase ${isPaused ? 'text-rgb-yellow' : 'text-rgb-red'}`}>
-              {isPaused ? 'PAUSED' : 'RECORDING'}
+            <span
+              className={`text-xs font-mono font-semibold uppercase ${isPaused ? "text-rgb-yellow" : "text-rgb-red"}`}
+            >
+              {isPaused ? "PAUSED" : "RECORDING"}
             </span>
           </div>
         </div>
@@ -342,9 +563,9 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
               whileTap={{ scale: 0.9 }}
               onClick={pauseRecording}
               className={`w-20 h-20 rounded-xl flex items-center justify-center border transition-all ${
-                isPaused 
-                  ? 'bg-rgb-yellow border-rgb-yellow glow-yellow' 
-                  : 'bg-terminal-hover border-terminal-border hover:border-rgb-cyan'
+                isPaused
+                  ? "bg-rgb-yellow border-rgb-yellow glow-yellow"
+                  : "bg-terminal-hover border-terminal-border hover:border-rgb-cyan"
               }`}
             >
               {isPaused ? (
@@ -365,8 +586,44 @@ const RecorderV2: React.FC<RecorderV2Props> = ({
           </div>
 
           <p className="text-center text-xs text-neutral-600 font-mono mt-4">
-            {isPaused ? 'TAP PLAY TO RESUME' : 'TAP CHECK TO SAVE'}
+            {isPaused ? "TAP PLAY TO RESUME" : "TAP CHECK TO SAVE"}
           </p>
+
+          {/* Upload alternative - shown when not actively recording */}
+          {onUploadFile && !isRecording && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 pt-4 border-t border-terminal-border"
+            >
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleUploadClick}
+                disabled={isValidatingUpload || isUploading}
+                className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border transition-all ${
+                  isValidatingUpload || isUploading
+                    ? "bg-rgb-cyan/10 border-rgb-cyan text-rgb-cyan"
+                    : "bg-terminal-surface border-terminal-border text-neutral-400 hover:border-rgb-cyan hover:text-rgb-cyan"
+                }`}
+              >
+                {isValidatingUpload || isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm font-mono">Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    <span className="text-sm font-mono">Or upload a file</span>
+                  </>
+                )}
+              </motion.button>
+              <p className="text-center text-[10px] text-neutral-600 font-mono mt-2">
+                MP3, M4A, WAV, WebM · Max {MAX_SIZE_MB}MB · {MAX_DURATION_MIN}{" "}
+                min
+              </p>
+            </motion.div>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>

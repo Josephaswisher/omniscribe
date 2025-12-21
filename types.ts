@@ -9,7 +9,7 @@ export interface VoiceNote {
   transcript?: string;
   parsedSummary?: string;
   parserId: string;
-  status: 'pending' | 'processing' | 'completed' | 'error';
+  status: "pending" | "processing" | "completed" | "error";
   errorMessage?: string;
   syncedToCloud?: boolean;
   gdriveAudioId?: string;
@@ -44,7 +44,7 @@ export interface Template {
   description: string;
   systemPrompt: string;
   icon: string;
-  category: 'default' | 'productivity' | 'creative' | 'professional' | 'custom';
+  category: "default" | "productivity" | "creative" | "professional" | "custom";
   isPublic?: boolean;
   usageCount?: number;
   createdAt: number;
@@ -80,8 +80,8 @@ export interface Action {
   id: string;
   noteId: string;
   content: string;
-  status: 'pending' | 'completed' | 'dismissed';
-  priority: 'low' | 'medium' | 'high';
+  status: "pending" | "completed" | "dismissed";
+  priority: "low" | "medium" | "high";
   dueDate?: number;
   completedAt?: number;
   createdAt: number;
@@ -119,11 +119,18 @@ export interface TranscriptSegment {
 }
 
 // Navigation
-export type TabId = 'home' | 'folders' | 'record' | 'search' | 'actions';
-export type AppView = 'main' | 'detail' | 'settings' | 'template-builder' | 'folder-detail' | 'analytics' | 'assistant';
+export type TabId = "home" | "folders" | "record" | "search" | "actions";
+export type AppView =
+  | "main"
+  | "detail"
+  | "settings"
+  | "template-builder"
+  | "folder-detail"
+  | "analytics"
+  | "assistant";
 
 // Theme
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = "light" | "dark" | "system";
 
 export interface ThemeColors {
   background: string;
@@ -167,7 +174,7 @@ export interface SearchFilters {
   tags?: string[];
   dateRange?: { start: number; end: number };
   parserId?: string;
-  status?: VoiceNote['status'];
+  status?: VoiceNote["status"];
   hasActions?: boolean;
 }
 
@@ -182,6 +189,8 @@ export interface RecordingState {
 export interface TabBarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
+  onUploadFile?: (file: File, duration: number) => void;
+  isUploading?: boolean;
   pendingActionsCount?: number;
 }
 

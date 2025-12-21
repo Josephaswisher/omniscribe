@@ -1,0 +1,60 @@
+# OmniScribe V3.1 - Audio File Upload Feature
+
+## Overview
+Enable users to upload existing audio files (MP3, MP4, M4A, WAV, WebM, OGG) instead of recording live. Uploaded files go through the same Gemini transcription pipeline as live recordings.
+
+## Requirements
+
+### Supported Formats
+- MP3 (audio/mpeg)
+- MP4/M4A (audio/mp4, audio/x-m4a)
+- WAV (audio/wav, audio/wave)
+- WebM (audio/webm)
+- OGG (audio/ogg)
+
+### Limits
+- Max file size: 100 MB
+- Max duration: 30 minutes
+
+### UI Entry Points
+1. Home Screen - Upload icon button next to record FAB (click to browse)
+2. Recorder Overlay - Drag & drop zone + "Upload file" button
+
+## Tasks
+
+### Task 1: Create AudioUploader Component
+Build a reusable component with:
+- File input (hidden) with accept filter for audio types
+- Drag-and-drop zone with visual feedback
+- File validation (size, type, duration)
+- Duration extraction from audio metadata using Web Audio API
+- Loading state while validating
+- Error messages for invalid files
+
+### Task 2: Add Upload Button to Home Screen
+Add a small upload icon button next to the existing record FAB:
+- Position: Left of the record button
+- Icon: Upload/cloud-upload icon
+- Click triggers file picker
+- Mobile-optimized (no drag-drop here)
+
+### Task 3: Integrate Upload in RecorderV2
+Add upload option to the recorder overlay:
+- Drag-and-drop zone at the top or bottom
+- "Or upload a file" button
+- Visual feedback on drag-over
+- Smooth transition from upload to processing
+
+### Task 4: Connect Upload to Processing Pipeline
+Wire the uploaded blob to existing processNote flow:
+- Create VoiceNote with uploaded blob
+- Extract duration from file metadata
+- Trigger same transcription pipeline
+- Handle cloud vs local mode
+
+### Task 5: Add Upload Progress UI
+Show upload/processing progress:
+- File name and size display
+- Progress indicator during validation
+- Smooth handoff to transcription status
+- Error handling with retry option

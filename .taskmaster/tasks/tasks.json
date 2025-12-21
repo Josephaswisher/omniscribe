@@ -1,0 +1,132 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Create AudioUploader Component",
+        "description": "Build a reusable component for audio file uploads with validation and drag-and-drop functionality",
+        "details": "Create a React component with: 1) Hidden file input with accept='audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/wave,audio/webm,audio/ogg' 2) Drag-and-drop zone using onDragOver, onDragLeave, onDrop events 3) File validation for size (100MB max), type, and duration (30min max) 4) Use Web Audio API AudioContext.decodeAudioData() to extract duration from file metadata 5) Loading states with spinner/skeleton 6) Error handling with user-friendly messages for oversized files, unsupported formats, or duration limits 7) Visual feedback for drag states (hover effects, border changes)",
+        "testStrategy": "Unit tests for file validation logic, drag-and-drop event handling, and duration extraction. Integration tests with mock audio files of various formats and sizes. Test error scenarios with invalid files.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T09:52:08.883Z"
+      },
+      {
+        "id": "2",
+        "title": "Add Upload Button to Home Screen",
+        "description": "Add upload icon button next to the record FAB on the home screen",
+        "details": "Add upload button to home screen: 1) Position button to the left of existing record FAB 2) Use upload/cloud-upload icon (Material-UI CloudUploadIcon or similar) 3) Implement onClick handler to trigger file picker from AudioUploader component 4) Style for mobile optimization with appropriate touch targets (44px minimum) 5) Ensure proper spacing and alignment with existing FAB 6) Add accessibility attributes (aria-label, role) 7) Handle file selection and pass to upload processing flow",
+        "testStrategy": "Visual regression tests for button positioning and styling. Interaction tests for file picker triggering. Accessibility testing with screen readers. Mobile responsiveness testing across different screen sizes.",
+        "priority": "high",
+        "dependencies": ["1"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T09:57:33.741Z"
+      },
+      {
+        "id": "3",
+        "title": "Integrate Upload in RecorderV2",
+        "description": "Add upload functionality to the recorder overlay with drag-and-drop zone and upload button",
+        "details": "Integrate AudioUploader into RecorderV2 overlay: 1) Add drag-and-drop zone at top or bottom of overlay 2) Include 'Or upload a file' button as alternative to recording 3) Implement visual feedback for drag-over states (border highlight, background color change) 4) Handle smooth transitions between upload mode and recording mode 5) Ensure upload area doesn't interfere with existing recording controls 6) Add conditional rendering based on upload vs record state 7) Implement proper z-index and positioning for overlay elements",
+        "testStrategy": "Integration tests for upload/record mode switching. Drag-and-drop functionality testing. UI state management tests. Visual testing for overlay layout and transitions.",
+        "priority": "high",
+        "dependencies": ["1"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:04:22.648Z"
+      },
+      {
+        "id": "4",
+        "title": "Connect Upload to Processing Pipeline",
+        "description": "Wire uploaded audio files to the existing processNote transcription pipeline",
+        "details": "Connect upload flow to existing processing: 1) Create VoiceNote object with uploaded File/Blob instead of recorded audio 2) Extract duration from file metadata using Web Audio API or file properties 3) Pass uploaded blob to existing processNote function 4) Ensure compatibility with both cloud and local transcription modes 5) Handle file format conversion if needed for Gemini API 6) Maintain same data structure and flow as live recordings 7) Add file source metadata to VoiceNote (uploaded vs recorded)",
+        "testStrategy": "Integration tests with actual audio files through the full pipeline. Test both cloud and local processing modes. Verify VoiceNote creation with uploaded files. Test transcription accuracy with various audio formats.",
+        "priority": "high",
+        "dependencies": ["1"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:05:20.973Z"
+      },
+      {
+        "id": "5",
+        "title": "Add Upload Progress UI",
+        "description": "Implement progress indicators and status feedback for file upload and processing",
+        "details": "Create upload progress interface: 1) Display file name and size after selection 2) Show progress indicator during file validation and upload 3) Implement loading states with progress bars or spinners 4) Smooth transition from upload progress to transcription status 5) Error handling UI with retry options for failed uploads 6) Success states with file info display 7) Cancel upload functionality if needed 8) Integrate with existing transcription progress indicators",
+        "testStrategy": "UI state testing for all progress stages. Error scenario testing with network failures. Progress indicator accuracy testing. User experience testing for smooth transitions.",
+        "priority": "medium",
+        "dependencies": ["4"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:08:05.898Z"
+      },
+      {
+        "id": "6",
+        "title": "Implement File Format Validation",
+        "description": "Create robust validation for supported audio formats and file properties",
+        "details": "Implement comprehensive file validation: 1) MIME type checking for audio/mpeg, audio/mp4, audio/x-m4a, audio/wav, audio/wave, audio/webm, audio/ogg 2) File extension validation as secondary check 3) File size validation (100MB limit) with human-readable error messages 4) Audio duration validation (30 minutes max) using Web Audio API 5) File integrity checks to ensure files aren't corrupted 6) Magic number/header validation for additional security 7) Async validation with proper error handling and user feedback",
+        "testStrategy": "Test with various valid and invalid file formats. Test edge cases like corrupted files, renamed extensions, and oversized files. Performance testing with large files. Security testing with malicious file uploads.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:08:14.207Z"
+      },
+      {
+        "id": "7",
+        "title": "Add Drag and Drop Visual Feedback",
+        "description": "Implement visual feedback system for drag-and-drop interactions",
+        "details": "Create drag-and-drop visual feedback: 1) Implement onDragEnter, onDragOver, onDragLeave, onDrop event handlers 2) Add visual states for drag-over (border highlight, background color change) 3) Show drop zone indicators and helper text 4) Implement drag-invalid states for unsupported files 5) Add smooth CSS transitions for state changes 6) Ensure proper event.preventDefault() to enable drop functionality 7) Add visual cues for valid vs invalid drop targets 8) Mobile-friendly fallback (file picker) when drag-and-drop isn't available",
+        "testStrategy": "Cross-browser testing for drag-and-drop functionality. Visual regression testing for all drag states. Mobile device testing for fallback behavior. Accessibility testing for keyboard navigation.",
+        "priority": "medium",
+        "dependencies": ["1"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:08:23.767Z"
+      },
+      {
+        "id": "8",
+        "title": "Handle Audio Metadata Extraction",
+        "description": "Extract and process audio file metadata for duration and format information",
+        "details": "Implement audio metadata extraction: 1) Use Web Audio API AudioContext.decodeAudioData() for duration extraction 2) Handle different audio formats and their metadata structures 3) Extract sample rate, bit rate, and channel information if available 4) Implement fallback methods for metadata extraction if Web Audio API fails 5) Cache metadata to avoid re-processing 6) Handle corrupted or incomplete audio files gracefully 7) Add metadata to VoiceNote object for future reference 8) Optimize for performance with large files",
+        "testStrategy": "Test metadata extraction across all supported formats. Performance testing with various file sizes. Error handling testing with corrupted files. Accuracy testing for duration extraction.",
+        "priority": "medium",
+        "dependencies": ["6"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:09:04.076Z"
+      },
+      {
+        "id": "9",
+        "title": "Implement Error Handling and Recovery",
+        "description": "Add comprehensive error handling for upload failures and recovery mechanisms",
+        "details": "Create robust error handling system: 1) Network error handling for upload failures 2) File validation error messages with specific guidance 3) Retry mechanisms for transient failures 4) User-friendly error messages for different failure types 5) Graceful degradation when features aren't available 6) Logging for debugging upload issues 7) Recovery options (retry, select different file) 8) Integration with existing error handling patterns in the app",
+        "testStrategy": "Test various error scenarios (network failures, invalid files, server errors). User experience testing for error recovery flows. Error message clarity and helpfulness testing.",
+        "priority": "medium",
+        "dependencies": ["5"],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2025-12-21T10:26:00.000Z"
+      },
+      {
+        "id": "10",
+        "title": "Add Upload Analytics and Monitoring",
+        "description": "Implement analytics tracking and monitoring for audio file upload feature usage",
+        "details": "Add analytics and monitoring: 1) Track upload success/failure rates 2) Monitor file format usage patterns 3) Track upload duration and file sizes 4) Monitor transcription accuracy for uploaded vs recorded audio 5) Add performance metrics for upload processing time 6) Track user engagement with upload feature 7) Error rate monitoring and alerting 8) Integration with existing analytics infrastructure 9) Privacy-compliant data collection",
+        "testStrategy": "Verify analytics events are properly fired. Test data accuracy and completeness. Privacy compliance testing. Performance impact testing of analytics code.",
+        "priority": "low",
+        "dependencies": ["9"],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2025-12-21T10:26:00.000Z",
+      "taskCount": 10,
+      "completedCount": 9,
+      "tags": ["master"]
+    }
+  }
+}

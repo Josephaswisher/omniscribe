@@ -38,6 +38,7 @@ import SettingsV2 from "./components/SettingsV2";
 import TemplateBuilder from "./components/TemplateBuilder";
 import AnalyticsView from "./components/AnalyticsView";
 import { AssistantChat } from "./components/AssistantChat";
+import { useToast, UploadErrors } from "./components/Toast";
 
 const defaultSettings: AppSettings = {
   cloudSyncEnabled: true,
@@ -68,7 +69,11 @@ const App: React.FC = () => {
   );
   const [isRecording, setIsRecording] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [gdriveConnected, setGdriveConnected] = useState(false);
+
+  // Toast notifications
+  const { showError, showSuccess } = useToast();
 
   // Initialize
   useEffect(() => {
@@ -308,6 +313,58 @@ const App: React.FC = () => {
     }
   };
 
+  // Handle uploaded audio file
+  const handleFileUpload = async (file: File, duration: number) => {
+    setIsUploading(true);
+    const isOffline = !navigator.onLine;
+
+    try {
+      // Convert File to Blob (File extends Blob, but ensure proper typing)
+      const audioBlob = new Blob([await file.arrayBuffer()], {
+        type: file.type,
+      });
+
+      const newNote: VoiceNote = {
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        duration: Math.round(duration),
+        audioBlob,
+        parserId: selectedParserId,
+        status: isOffline ? "pending" : "processing",
+        title: file.name.replace(/\.[^/.]+$/, ""), // Use filename without extension as title
+      };
+
+      setNotes((prev) => [newNote, ...prev]);
+      await db.saveNote(newNote);
+      setIsUploading(false);
+
+      // Success feedback
+      showSuccess(
+        "Audio uploaded",
+        isOffline
+          ? "Will transcribe when back online"
+          : "Processing transcription...",
+      );
+
+      if (!isOffline && settings.autoTranscribe) {
+        processNote(newNote);
+      }
+
+      // Haptic feedback
+      if (settings.hapticFeedback && "vibrate" in navigator) {
+        navigator.vibrate([30, 30]);
+      }
+    } catch (err) {
+      console.error("[App] Failed to process uploaded file:", err);
+      setIsUploading(false);
+      showError(
+        UploadErrors.PROCESSING_FAILED.title,
+        UploadErrors.PROCESSING_FAILED.description,
+        () => handleFileUpload(file, duration), // Retry with same file
+      );
+    }
+  };
+
   const handleNoteSelect = (note: VoiceNote) => {
     setActiveNote(note);
     setCurrentView("detail");
@@ -530,6 +587,8 @@ const App: React.FC = () => {
       <TabBar
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        onUploadFile={handleFileUpload}
+        isUploading={isUploading}
         pendingActionsCount={pendingActionsCount}
       />
 
@@ -543,6 +602,8 @@ const App: React.FC = () => {
             onParserChange={setSelectedParserId}
             isFullScreen={true}
             onClose={() => setIsRecording(false)}
+            onUploadFile={handleFileUpload}
+            isUploading={isUploading}
           />
         )}
       </AnimatePresence>
