@@ -156,19 +156,19 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     subtext?: string;
     color: string;
   }> = ({ icon: Icon, label, value, subtext, color }) => (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+    <div className="bg-terminal-surface border border-terminal-border rounded-xl p-4">
       <div className="flex items-center gap-3 mb-2">
         <div
           className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center`}
         >
           <Icon className="w-4 h-4 text-white" />
         </div>
-        <span className="text-xs text-slate-500 uppercase tracking-wider">
+        <span className="text-xs text-neutral-500 uppercase tracking-wider">
           {label}
         </span>
       </div>
       <div className="text-2xl font-bold text-white">{value}</div>
-      {subtext && <div className="text-xs text-slate-500 mt-1">{subtext}</div>}
+      {subtext && <div className="text-xs text-neutral-500 mt-1">{subtext}</div>}
     </div>
   );
 
@@ -177,16 +177,16 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
-      className="fixed inset-0 z-50 flex flex-col bg-slate-900"
+      className="fixed inset-0 z-50 flex flex-col bg-terminal-bg"
     >
       {/* Header */}
-      <header className="safe-top px-4 py-4 border-b border-slate-800">
+      <header className="safe-top px-4 py-4 border-b border-terminal-border">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="w-10 h-10 rounded-full bg-slate-800/50 flex items-center justify-center"
+            className="w-10 h-10 rounded-full bg-terminal-surface flex items-center justify-center"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="w-5 h-5 text-neutral-400" />
           </button>
           <h1 className="text-lg font-bold text-white">Analytics</h1>
           <div className="w-10" />
@@ -213,7 +213,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         {/* Key Stats Grid */}
         <section>
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">
+          <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-3 px-1">
             Overview
           </h2>
           <div className="grid grid-cols-2 gap-3">
@@ -221,7 +221,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               icon={Mic}
               label="Total Notes"
               value={stats.totalNotes}
-              color="bg-indigo-500"
+              color="bg-rgb-cyan"
             />
             <StatCard
               icon={Clock}
@@ -248,10 +248,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         {/* Activity Chart */}
         <section>
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">
+          <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-3 px-1">
             Last 7 Days
           </h2>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+          <div className="bg-terminal-surface border border-terminal-border rounded-xl p-4">
             <div className="flex items-end justify-between h-32 gap-2">
               {stats.last7Days.map((day, i) => (
                 <div
@@ -266,17 +266,17 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                       }}
                       transition={{ delay: i * 0.05 }}
                       className={`w-full rounded-t-md ${
-                        day.count > 0 ? "bg-indigo-500" : "bg-slate-700"
+                        day.count > 0 ? "bg-rgb-cyan" : "bg-terminal-hover"
                       }`}
                       style={{ minHeight: day.count > 0 ? 8 : 4 }}
                     />
                   </div>
-                  <span className="text-xs text-slate-500">{day.label}</span>
+                  <span className="text-xs text-neutral-500">{day.label}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-4 pt-4 border-t border-slate-700 flex justify-between text-sm">
-              <span className="text-slate-500">This week</span>
+            <div className="mt-4 pt-4 border-t border-terminal-border flex justify-between text-sm">
+              <span className="text-neutral-500">This week</span>
               <span className="text-white font-medium">
                 {stats.last7Days.reduce((sum, d) => sum + d.count, 0)} notes
               </span>
@@ -286,29 +286,29 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         {/* Parser Usage */}
         <section>
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">
+          <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-3 px-1">
             Parser Usage
           </h2>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3">
+          <div className="bg-terminal-surface border border-terminal-border rounded-xl p-4 space-y-3">
             {stats.parserUsage.length > 0 ? (
               stats.parserUsage.map((item, i) => (
                 <div key={i}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-300">{item.parser}</span>
-                    <span className="text-slate-500">{item.count} notes</span>
+                    <span className="text-neutral-200">{item.parser}</span>
+                    <span className="text-neutral-500">{item.count} notes</span>
                   </div>
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-2 bg-terminal-hover rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${item.percentage}%` }}
                       transition={{ delay: i * 0.1 }}
-                      className="h-full bg-indigo-500 rounded-full"
+                      className="h-full bg-rgb-cyan rounded-full"
                     />
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-slate-500 py-4">
+              <div className="text-center text-neutral-500 py-4">
                 No notes recorded yet
               </div>
             )}
@@ -318,29 +318,29 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         {/* Upload Stats - V3.1 */}
         {stats.uploadCount > 0 && (
           <section>
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">
+            <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-3 px-1">
               Upload Stats
             </h2>
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-4">
+            <div className="bg-terminal-surface border border-terminal-border rounded-xl p-4 space-y-4">
               {/* Source breakdown */}
               <div className="flex gap-4">
-                <div className="flex-1 text-center p-3 bg-slate-700/30 rounded-lg">
+                <div className="flex-1 text-center p-3 bg-terminal-hover/30 rounded-lg">
                   <div className="text-xl font-bold text-cyan-400">
                     {stats.uploadCount}
                   </div>
-                  <div className="text-xs text-slate-500">Uploaded</div>
+                  <div className="text-xs text-neutral-500">Uploaded</div>
                 </div>
-                <div className="flex-1 text-center p-3 bg-slate-700/30 rounded-lg">
+                <div className="flex-1 text-center p-3 bg-terminal-hover/30 rounded-lg">
                   <div className="text-xl font-bold text-indigo-400">
                     {stats.recordedCount}
                   </div>
-                  <div className="text-xs text-slate-500">Recorded</div>
+                  <div className="text-xs text-neutral-500">Recorded</div>
                 </div>
-                <div className="flex-1 text-center p-3 bg-slate-700/30 rounded-lg">
-                  <div className="text-xl font-bold text-slate-300">
+                <div className="flex-1 text-center p-3 bg-terminal-hover/30 rounded-lg">
+                  <div className="text-xl font-bold text-neutral-200">
                     {(stats.avgUploadSize / (1024 * 1024)).toFixed(1)}MB
                   </div>
-                  <div className="text-xs text-slate-500">Avg Size</div>
+                  <div className="text-xs text-neutral-500">Avg Size</div>
                 </div>
               </div>
               {/* Format breakdown */}
@@ -362,14 +362,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         {/* Tips */}
         <section className="pb-8">
-          <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
+          <div className="bg-terminal-surface/30 border border-terminal-border/30 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-medium text-slate-300 mb-1">
+                <h3 className="text-sm font-medium text-neutral-200 mb-1">
                   Pro Tip
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-neutral-500">
                   Try recording at the same time each day to build a consistent
                   habit. Morning voice notes are great for planning your day!
                 </p>

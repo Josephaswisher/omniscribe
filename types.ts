@@ -32,6 +32,10 @@ export interface VoiceNote {
   source?: "recorded" | "uploaded";
   uploadedFileType?: string;
   uploadedFileSize?: number;
+  // V3.2: Template outputs
+  templateOutputs?: TemplateOutput[];
+  // V3.3: Version history
+  versions?: NoteVersion[];
 }
 
 export interface Parser {
@@ -48,10 +52,36 @@ export interface Template {
   description: string;
   systemPrompt: string;
   icon: string;
-  category: "default" | "productivity" | "creative" | "professional" | "custom";
+  category:
+    | "default"
+    | "productivity"
+    | "creative"
+    | "professional"
+    | "medical"
+    | "custom";
   isPublic?: boolean;
   usageCount?: number;
+  isFavorite?: boolean;
+  lastUsedAt?: number;
   createdAt: number;
+}
+
+export interface TemplateOutput {
+  templateId: string;
+  templateName: string;
+  output: string;
+  generatedAt: number;
+}
+
+export interface NoteVersion {
+  id: string;
+  createdAt: number;
+  transcript?: string;
+  parsedSummary?: string;
+  templateOutputs?: TemplateOutput[];
+  title?: string;
+  changeType: "transcript" | "summary" | "template" | "title" | "manual";
+  changeDescription?: string;
 }
 
 export interface Folder {
@@ -193,7 +223,6 @@ export interface RecordingState {
 export interface TabBarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
-  onOpenAssistant?: () => void;
   pendingActionsCount?: number;
 }
 

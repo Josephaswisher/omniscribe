@@ -1,13 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  Home,
-  FolderOpen,
-  Mic,
-  Search,
-  CheckSquare,
-  MessageCircle,
-} from "lucide-react";
+import { Home, FolderOpen, Mic, Search, CheckSquare } from "lucide-react";
 import { TabId, TabBarProps } from "../types";
 
 const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
@@ -21,13 +14,12 @@ const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
 const TabBar: React.FC<TabBarProps> = ({
   activeTab,
   onTabChange,
-  onOpenAssistant,
   pendingActionsCount = 0,
 }) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
-      <div className="mx-4 mb-4 bg-terminal-surface/95 backdrop-blur-xl border border-terminal-border rounded-xl shadow-2xl shadow-black/40">
-        <div className="flex items-center justify-around py-2">
+      <div className="mx-4 mb-4 bg-terminal-surface/95 backdrop-blur-xl border border-terminal-border rounded-2xl shadow-2xl shadow-black/50">
+        <div className="flex items-center justify-around py-3">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             const isRecordTab = tab.id === "record";
@@ -37,40 +29,33 @@ const TabBar: React.FC<TabBarProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`relative flex flex-col items-center justify-center py-2 px-4 transition-all duration-200 ${
-                  isRecordTab ? "px-2" : ""
+                className={`relative flex flex-col items-center justify-center py-1 px-3 transition-all duration-200 ${
+                  isRecordTab ? "px-1" : ""
                 }`}
               >
                 {isRecordTab ? (
-                  <div className="flex items-end gap-2 -mt-6">
-                    {/* Ask OmniScribe button */}
-                    {onOpenAssistant && (
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenAssistant();
-                        }}
-                        className="w-10 h-10 rounded-lg bg-terminal-surface border border-terminal-border flex items-center justify-center shadow-md hover:border-rgb-purple hover:bg-terminal-hover transition-all"
-                        title="Ask OmniScribe"
-                      >
-                        <MessageCircle className="w-4 h-4 text-rgb-purple" />
-                      </motion.button>
-                    )}
-                    {/* Record button */}
-                    <motion.div
-                      whileTap={{ scale: 0.9 }}
-                      className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 border ${
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex flex-col items-center gap-1 -mt-8"
+                  >
+                    <div
+                      className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-300 ${
                         isActive
-                          ? "bg-rgb-red border-rgb-red glow-red"
-                          : "bg-terminal-hover border-terminal-border hover:border-rgb-cyan"
+                          ? "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/40 border border-red-400/30"
+                          : "bg-gradient-to-br from-cyan-500 to-teal-600 shadow-cyan-500/30 border border-cyan-400/20 hover:shadow-cyan-500/40"
                       }`}
                     >
-                      <Icon
-                        className={`w-6 h-6 ${isActive ? "text-white" : "text-rgb-cyan"}`}
-                      />
-                    </motion.div>
-                  </div>
+                      <Icon className="w-7 h-7 text-white" />
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-medium ${
+                        isActive ? "text-red-400" : "text-cyan-400"
+                      }`}
+                    >
+                      {isActive ? "Recording" : "Record"}
+                    </span>
+                  </motion.div>
                 ) : (
                   <>
                     <motion.div

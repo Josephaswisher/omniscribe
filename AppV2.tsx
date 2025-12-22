@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Settings, Upload, Loader2 } from "lucide-react";
+import {
+  Settings,
+  Upload,
+  Loader2,
+  MessageCircle,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import { db } from "./db";
 import {
   VoiceNote,
@@ -77,6 +84,12 @@ const App: React.FC = () => {
 
   // File upload ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Quick chat state
+  const [quickChatInput, setQuickChatInput] = useState("");
+  const [quickChatInitialMessage, setQuickChatInitialMessage] = useState<
+    string | null
+  >(null);
 
   // Supported audio types for upload
   const ACCEPTED_TYPES = [
@@ -500,6 +513,15 @@ const App: React.FC = () => {
     (a) => a.status === "pending",
   ).length;
 
+  // Handle quick chat submission
+  const handleQuickChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickChatInput.trim()) return;
+    setQuickChatInitialMessage(quickChatInput.trim());
+    setQuickChatInput("");
+    setCurrentView("assistant");
+  };
+
   return (
     <div className="h-full flex flex-col bg-terminal-bg text-neutral-100 font-sans">
       {/* Background - subtle grid */}
@@ -510,6 +532,19 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-rgb-cyan/5 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rgb-green/5 rounded-full blur-[120px]" />
       </div>
+
+      {/* Futuristic Side Bars - Black/Purple Gradient */}
+      <div className="fixed left-0 top-0 bottom-0 w-1 z-30 pointer-events-none">
+        <div className="h-full w-full bg-gradient-to-b from-purple-500 via-violet-600 to-black opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-400/50 via-transparent to-purple-500/30 animate-pulse" />
+      </div>
+      <div className="fixed right-0 top-0 bottom-0 w-1 z-30 pointer-events-none">
+        <div className="h-full w-full bg-gradient-to-b from-black via-violet-600 to-purple-500 opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/30 via-transparent to-purple-400/50 animate-pulse" />
+      </div>
+      {/* Side glow effect */}
+      <div className="fixed left-0 top-0 bottom-0 w-8 z-20 pointer-events-none bg-gradient-to-r from-purple-500/10 to-transparent" />
+      <div className="fixed right-0 top-0 bottom-0 w-8 z-20 pointer-events-none bg-gradient-to-l from-purple-500/10 to-transparent" />
 
       {/* Header */}
       <header className="relative z-20 px-4 py-4 safe-top flex items-center justify-between border-b border-terminal-border">
@@ -614,6 +649,70 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Ask AI Subheader with Inline Chat */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-20 px-4 py-2 border-b border-terminal-border bg-gradient-to-r from-purple-500/5 via-transparent to-violet-500/5"
+      >
+        <form
+          onSubmit={handleQuickChatSubmit}
+          className="flex items-center gap-2"
+        >
+          {/* AI Icon */}
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setCurrentView("assistant")}
+            className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20"
+            title="Open full chat"
+          >
+            <Sparkles className="w-4 h-4 text-white" />
+          </motion.button>
+
+          {/* Input Field */}
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={quickChatInput}
+              onChange={(e) => setQuickChatInput(e.target.value)}
+              placeholder="Ask anything about your notes..."
+              className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-purple-500/20 focus:border-purple-500/50 focus:outline-none text-sm text-black font-mono transition-colors rgb-placeholder"
+            />
+            <style>{`
+              .rgb-placeholder::placeholder {
+                background: linear-gradient(90deg, #00ffff, #ff00ff, #00ff00, #00ffff);
+                background-size: 300% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: rgb-shift 3s linear infinite;
+              }
+              @keyframes rgb-shift {
+                0% { background-position: 0% 50%; }
+                100% { background-position: 300% 50%; }
+              }
+            `}</style>
+          </div>
+
+          {/* Send Button */}
+          <motion.button
+            type="submit"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            disabled={!quickChatInput.trim()}
+            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
+              quickChatInput.trim()
+                ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/20"
+                : "bg-terminal-surface border border-purple-500/20 text-purple-400/50"
+            }`}
+          >
+            <Send className="w-4 h-4" />
+          </motion.button>
+        </form>
+      </motion.div>
+
       {/* Main Content */}
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
         {activeTab === "home" && (
@@ -672,7 +771,6 @@ const App: React.FC = () => {
       <TabBar
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        onOpenAssistant={() => setCurrentView("assistant")}
         pendingActionsCount={pendingActionsCount}
       />
 
@@ -700,6 +798,7 @@ const App: React.FC = () => {
             parser={parsers.find((p) => p.id === activeNote.parserId)}
             folders={folders}
             tags={tags}
+            templates={templates}
             onBack={() => setCurrentView("main")}
             onUpdate={handleNoteUpdate}
             onDelete={() => handleNoteDelete(activeNote.id)}
@@ -739,6 +838,14 @@ const App: React.FC = () => {
             onMoveToFolder={(folderId) =>
               handleNoteUpdate({ folderId: folderId || undefined })
             }
+            onToggleTemplateFavorite={(templateId) => {
+              setTemplates((prev) =>
+                prev.map((t) =>
+                  t.id === templateId ? { ...t, isFavorite: !t.isFavorite } : t,
+                ),
+              );
+            }}
+            onOpenTemplateBuilder={() => setCurrentView("template-builder")}
           />
         )}
       </AnimatePresence>
@@ -801,7 +908,13 @@ const App: React.FC = () => {
       {/* AI Assistant Chat */}
       <AnimatePresence>
         {currentView === "assistant" && (
-          <AssistantChat onClose={() => setCurrentView("main")} />
+          <AssistantChat
+            onClose={() => {
+              setCurrentView("main");
+              setQuickChatInitialMessage(null);
+            }}
+            initialMessage={quickChatInitialMessage}
+          />
         )}
       </AnimatePresence>
 

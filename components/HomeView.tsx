@@ -1,18 +1,39 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Pin, MoreVertical, Clock, FileText, Trash2, FolderOpen, Calendar } from 'lucide-react';
-import { VoiceNote, Parser, Folder, Tag as TagType } from '../types';
-import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
+import React, { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Pin,
+  MoreVertical,
+  Clock,
+  FileText,
+  Trash2,
+  FolderOpen,
+  Calendar,
+  Copy,
+  Share2,
+  RefreshCw,
+  Tag,
+  Wand2,
+  X,
+} from "lucide-react";
+import { VoiceNote, Parser, Folder, Tag as TagType, Template } from "../types";
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 
 interface HomeViewProps {
   notes: VoiceNote[];
   parsers: Parser[];
   folders: Folder[];
   tags: TagType[];
+  templates?: Template[];
   onNoteSelect: (note: VoiceNote) => void;
   onNoteDelete: (id: string) => void;
   onNotePin: (id: string) => void;
   onRetry: (note: VoiceNote) => void;
+  onNoteDuplicate?: (note: VoiceNote) => void;
+  onNoteMoveToFolder?: (noteId: string, folderId: string | null) => void;
+  onNoteAddTag?: (noteId: string, tagId: string) => void;
+  onNoteRemoveTag?: (noteId: string, tagId: string) => void;
+  onNoteApplyTemplate?: (noteId: string, template: Template) => void;
+  onNoteShare?: (note: VoiceNote) => void;
   isSyncing?: boolean;
 }
 
@@ -20,34 +41,83 @@ const HomeView: React.FC<HomeViewProps> = ({
   notes,
   parsers,
   folders,
+  tags,
+  templates = [],
   onNoteSelect,
   onNoteDelete,
   onNotePin,
   onRetry,
+  onNoteDuplicate,
+  onNoteMoveToFolder,
+  onNoteAddTag,
+  onNoteRemoveTag,
+  onNoteApplyTemplate,
+  onNoteShare,
   isSyncing,
 }) => {
-  const getParserName = (id: string) => parsers.find(p => p.id === id)?.name || 'Raw';
-  const getFolderName = (id?: string) => id ? folders.find(f => f.id === id)?.name : null;
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [submenu, setSubmenu] = useState<"folder" | "tag" | "template" | null>(
+    null,
+  );
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+        setSubmenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const getParserName = (id: string) =>
+    parsers.find((p) => p.id === id)?.name || "Raw";
+  const getFolderName = (id?: string) =>
+    id ? folders.find((f) => f.id === id)?.name : null;
+
+  const handleShare = async (note: VoiceNote) => {
+    if (onNoteShare) {
+      onNoteShare(note);
+    } else if (navigator.share) {
+      try {
+        await navigator.share({
+          title: note.title || "Voice Note",
+          text: note.transcript || note.parsedSummary || "",
+        });
+      } catch (err) {
+        // User cancelled or error
+      }
+    } else {
+      // Fallback: copy to clipboard
+      const text = `${note.title || "Voice Note"}\n\n${note.transcript || note.parsedSummary || ""}`;
+      await navigator.clipboard.writeText(text);
+      alert("Copied to clipboard!");
+    }
+    setMenuOpenId(null);
+  };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const formatDateTime = (timestamp: number) => {
     const date = new Date(timestamp);
     if (isToday(date)) {
-      return `Today at ${format(date, 'h:mm a')}`;
+      return `Today at ${format(date, "h:mm a")}`;
     } else if (isYesterday(date)) {
-      return `Yesterday at ${format(date, 'h:mm a')}`;
+      return `Yesterday at ${format(date, "h:mm a")}`;
     } else {
-      return format(date, 'MMM d, yyyy · h:mm a');
+      return format(date, "MMM d, yyyy · h:mm a");
     }
   };
 
-  const pinnedNotes = notes.filter(n => n.isPinned);
-  const recentNotes = notes.filter(n => !n.isPinned);
+  const pinnedNotes = notes.filter((n) => n.isPinned);
+  const recentNotes = notes.filter((n) => !n.isPinned);
 
   const NoteCard: React.FC<{ note: VoiceNote }> = ({ note }) => (
     <motion.div
@@ -78,7 +148,9 @@ const HomeView: React.FC<HomeViewProps> = ({
         <h3 className="text-neutral-100 font-semibold text-base leading-snug line-clamp-2">
           {note.title || (
             <span className="text-neutral-500 italic font-normal">
-              {note.status === 'processing' ? 'Processing...' : 'Untitled Recording'}
+              {note.status === "processing"
+                ? "Processing..."
+                : "Untitled Recording"}
             </span>
           )}
         </h3>
@@ -102,14 +174,14 @@ const HomeView: React.FC<HomeViewProps> = ({
       {/* Tags */}
       {note.tags && note.tags.length > 0 && (
         <div className="flex gap-1.5 mb-3 flex-wrap">
-          {note.tags.slice(0, 3).map(tag => (
+          {note.tags.slice(0, 3).map((tag) => (
             <span
               key={tag.id}
               className="px-2 py-0.5 rounded text-[10px] font-mono font-medium border"
-              style={{ 
-                backgroundColor: `${tag.color}15`, 
+              style={{
+                backgroundColor: `${tag.color}15`,
                 color: tag.color,
-                borderColor: `${tag.color}30`
+                borderColor: `${tag.color}30`,
               }}
             >
               #{tag.name}
@@ -140,21 +212,24 @@ const HomeView: React.FC<HomeViewProps> = ({
 
         <div className="flex items-center gap-2">
           {/* Status */}
-          {note.status === 'processing' && (
+          {note.status === "processing" && (
             <span className="flex items-center gap-1.5 text-rgb-cyan bg-rgb-cyan/10 px-2 py-0.5 rounded text-[10px] font-mono font-semibold border border-rgb-cyan/20">
               <span className="w-1.5 h-1.5 bg-rgb-cyan rounded-full animate-pulse" />
               PROCESSING
             </span>
           )}
-          {note.status === 'error' && (
+          {note.status === "error" && (
             <button
-              onClick={(e) => { e.stopPropagation(); onRetry(note); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRetry(note);
+              }}
               className="text-rgb-red bg-rgb-red/10 px-2 py-0.5 rounded text-[10px] font-mono font-semibold hover:bg-rgb-red/20 border border-rgb-red/20"
             >
               RETRY
             </button>
           )}
-          {note.status === 'pending' && (
+          {note.status === "pending" && (
             <span className="text-rgb-yellow bg-rgb-yellow/10 px-2 py-0.5 rounded text-[10px] font-mono font-semibold border border-rgb-yellow/20">
               OFFLINE
             </span>
@@ -178,17 +253,23 @@ const HomeView: React.FC<HomeViewProps> = ({
       {/* Quick Actions (on hover) */}
       <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
         <button
-          onClick={(e) => { e.stopPropagation(); onNotePin(note.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onNotePin(note.id);
+          }}
           className={`p-2 rounded-lg transition-colors border ${
-            note.isPinned 
-              ? 'bg-rgb-yellow/20 text-rgb-yellow border-rgb-yellow/30' 
-              : 'bg-terminal-hover text-neutral-400 hover:text-white border-terminal-border'
+            note.isPinned
+              ? "bg-rgb-yellow/20 text-rgb-yellow border-rgb-yellow/30"
+              : "bg-terminal-hover text-neutral-400 hover:text-white border-terminal-border"
           }`}
         >
           <Pin className="w-4 h-4" />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) onNoteDelete(note.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm("Delete?")) onNoteDelete(note.id);
+          }}
           className="p-2 rounded-lg bg-terminal-hover text-neutral-400 hover:text-rgb-red transition-colors border border-terminal-border"
         >
           <Trash2 className="w-4 h-4" />
@@ -203,8 +284,12 @@ const HomeView: React.FC<HomeViewProps> = ({
         <div className="w-20 h-20 rounded-xl bg-terminal-surface border border-terminal-border flex items-center justify-center mb-6">
           <FileText className="w-10 h-10 text-neutral-600" />
         </div>
-        <p className="text-lg font-semibold text-neutral-400">No recordings yet</p>
-        <p className="text-sm text-neutral-600 mt-1 font-mono">Tap the record button to get started</p>
+        <p className="text-lg font-semibold text-neutral-400">
+          No recordings yet
+        </p>
+        <p className="text-sm text-neutral-600 mt-1 font-mono">
+          Tap the record button to get started
+        </p>
       </div>
     );
   }
@@ -215,7 +300,9 @@ const HomeView: React.FC<HomeViewProps> = ({
       {isSyncing && (
         <div className="mx-4 mb-4 px-4 py-2 bg-rgb-cyan/10 border border-rgb-cyan/20 rounded-lg flex items-center gap-2">
           <div className="w-2 h-2 bg-rgb-cyan rounded-full animate-pulse" />
-          <span className="text-sm text-rgb-cyan font-mono font-medium">Syncing...</span>
+          <span className="text-sm text-rgb-cyan font-mono font-medium">
+            Syncing...
+          </span>
         </div>
       )}
 
@@ -224,10 +311,12 @@ const HomeView: React.FC<HomeViewProps> = ({
         <section className="px-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Pin className="w-4 h-4 text-rgb-yellow" />
-            <h2 className="text-xs font-mono font-semibold text-neutral-500 uppercase tracking-widest">Pinned</h2>
+            <h2 className="text-xs font-mono font-semibold text-neutral-500 uppercase tracking-widest">
+              Pinned
+            </h2>
           </div>
           <div className="space-y-3">
-            {pinnedNotes.map(note => (
+            {pinnedNotes.map((note) => (
               <NoteCard key={note.id} note={note} />
             ))}
           </div>
@@ -237,13 +326,15 @@ const HomeView: React.FC<HomeViewProps> = ({
       {/* Recent Section */}
       <section className="px-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-mono font-semibold text-neutral-500 uppercase tracking-widest">Recent</h2>
+          <h2 className="text-xs font-mono font-semibold text-neutral-500 uppercase tracking-widest">
+            Recent
+          </h2>
           <span className="text-[10px] font-mono bg-terminal-surface text-neutral-500 px-2 py-0.5 rounded border border-terminal-border">
             {recentNotes.length}
           </span>
         </div>
         <div className="space-y-3">
-          {recentNotes.map(note => (
+          {recentNotes.map((note) => (
             <NoteCard key={note.id} note={note} />
           ))}
         </div>

@@ -74,7 +74,7 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: -100 }}
-        className={`bg-slate-800/40 border rounded-xl overflow-hidden transition-all ${
+        className={`bg-terminal-surface border rounded-xl overflow-hidden transition-all ${
           action.status === 'completed' 
             ? 'border-green-500/20 opacity-60' 
             : isOverdue 
@@ -95,13 +95,13 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
               {action.status === 'completed' ? (
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
               ) : (
-                <Circle className={`w-6 h-6 ${isOverdue ? 'text-red-400' : 'text-slate-500'} hover:text-indigo-400 transition-colors`} />
+                <Circle className={`w-6 h-6 ${isOverdue ? 'text-red-400' : 'text-neutral-500'} hover:text-indigo-400 transition-colors`} />
               )}
             </button>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <p className={`text-base ${action.status === 'completed' ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+              <p className={`text-base ${action.status === 'completed' ? 'line-through text-neutral-500' : 'text-slate-100'}`}>
                 {action.content}
               </p>
 
@@ -122,7 +122,7 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
                 {/* Due Date */}
                 {action.dueDate && (
                   <span className={`flex items-center gap-1 text-xs ${
-                    isOverdue ? 'text-red-400' : 'text-slate-500'
+                    isOverdue ? 'text-red-400' : 'text-neutral-500'
                   }`}>
                     <Calendar className="w-3 h-3" />
                     {formatDueDate(action.dueDate)}
@@ -142,7 +142,7 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
             {/* Actions Menu */}
             <button
               onClick={() => setExpandedAction(isExpanded ? null : action.id)}
-              className="p-1 text-slate-500 hover:text-white"
+              className="p-1 text-neutral-500 hover:text-white"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -155,7 +155,7 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="mt-4 pt-4 border-t border-slate-700/50 flex gap-2 flex-wrap"
+                className="mt-4 pt-4 border-t border-terminal-border flex gap-2 flex-wrap"
               >
                 {/* Priority buttons */}
                 {(['low', 'medium', 'high'] as const).map(p => (
@@ -165,7 +165,7 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       action.priority === p 
                         ? 'ring-2 ring-white' 
-                        : 'bg-slate-700'
+                        : 'bg-terminal-hover'
                     }`}
                     style={{ 
                       backgroundColor: action.priority === p ? priorityColors[p] : undefined,
@@ -180,7 +180,7 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
 
                 <button
                   onClick={() => onActionToggle(action.id, 'dismissed')}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-terminal-hover text-neutral-200 hover:bg-terminal-hover"
                 >
                   Dismiss
                 </button>
@@ -205,11 +205,11 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Actions</h1>
-            <p className="text-sm text-slate-500 mt-1">Tasks extracted from your notes</p>
+            <p className="text-sm text-neutral-500 mt-1">Tasks extracted from your notes</p>
           </div>
           {pendingCount > 0 && (
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-full text-sm font-medium">
+              <span className="px-3 py-1 bg-rgb-cyan/10 text-indigo-400 rounded-full text-sm font-medium">
                 {pendingCount} pending
               </span>
               {overdueCount > 0 && (
@@ -234,8 +234,8 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
               onClick={() => setFilter(tab.id as FilterType)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                 filter === tab.id
-                  ? 'bg-indigo-500 text-white'
-                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800'
+                  ? 'bg-rgb-cyan text-white'
+                  : 'bg-terminal-surface text-neutral-400 hover:bg-terminal-surface'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -249,23 +249,23 @@ const ActionsHub: React.FC<ActionsHubProps> = ({
       <div className="flex-1 overflow-y-auto px-4">
         {filteredActions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center pb-20">
-            <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mb-6">
-              <CheckSquare className="w-10 h-10 text-slate-600" />
+            <div className="w-20 h-20 rounded-full bg-terminal-surface flex items-center justify-center mb-6">
+              <CheckSquare className="w-10 h-10 text-neutral-600" />
             </div>
             {filter === 'pending' ? (
               <>
-                <p className="text-lg font-medium text-slate-400">All caught up!</p>
-                <p className="text-sm text-slate-500 mt-1">No pending actions</p>
+                <p className="text-lg font-medium text-neutral-400">All caught up!</p>
+                <p className="text-sm text-neutral-500 mt-1">No pending actions</p>
               </>
             ) : filter === 'overdue' ? (
               <>
-                <p className="text-lg font-medium text-slate-400">No overdue tasks</p>
-                <p className="text-sm text-slate-500 mt-1">You're on track!</p>
+                <p className="text-lg font-medium text-neutral-400">No overdue tasks</p>
+                <p className="text-sm text-neutral-500 mt-1">You're on track!</p>
               </>
             ) : (
               <>
-                <p className="text-lg font-medium text-slate-400">No actions yet</p>
-                <p className="text-sm text-slate-500 mt-1">Tasks from your notes will appear here</p>
+                <p className="text-lg font-medium text-neutral-400">No actions yet</p>
+                <p className="text-sm text-neutral-500 mt-1">Tasks from your notes will appear here</p>
               </>
             )}
           </div>
