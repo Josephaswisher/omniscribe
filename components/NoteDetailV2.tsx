@@ -35,7 +35,6 @@ import ExportModal from "./ExportModal";
 import { TranscriptPlayer } from "./TranscriptPlayer";
 import TemplateOutputTabs from "./TemplateOutputTabs";
 import LanguageBadge from "./LanguageBadge";
-import DifferentialGenerator from "./DifferentialGenerator";
 import MedicalSpellCheck from "./MedicalSpellCheck";
 import NoteVersionHistory, {
   createVersionSnapshot,
@@ -568,7 +567,6 @@ const NoteDetailV2: React.FC<NoteDetailV2Props> = ({
               Clinical Tools
             </h3>
             <div className="space-y-4">
-              <DifferentialGenerator transcript={note.transcript} />
               <MedicalSpellCheck text={note.transcript} />
             </div>
           </div>
